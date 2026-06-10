@@ -1,0 +1,9 @@
+[project]
+name = "reporta-aula-moodle"
+version = "0.1.0"
+description = "App web para extraer participacion y desempeno desde Moodle y sincronizar reportes con Google Sheets."
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
