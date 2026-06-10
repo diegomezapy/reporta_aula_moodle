@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 from app.config import Settings
 from app.models import ReportPackage, RunRequest
 from app.moodle_client import MoodleClient
-from app.reporting import build_activity_summary, build_student_summaries
+from app.reporting import apply_desertion_risk, build_activity_summary, build_student_summaries, build_tutor_summary
 from app.sheets import sync_with_google
 from app.storage import write_report
 
@@ -32,8 +32,12 @@ def run_extraction(run_id: str, request: RunRequest, settings: Settings) -> Tupl
     grade_rows = client.get_grade_rows(course_id)
     activities = client.get_course_activities(course_id)
     participation_rows = client.get_participation_rows(course_id, activities)
+    tutor_participation_rows = client.get_tutor_participation_rows(course_id, activities) if request.include_tutor_participation else []
+    tutor_summary = build_tutor_summary(tutor_participation_rows, len(activities))
     summaries = build_student_summaries(participants, grade_rows, participation_rows)
+    summaries = apply_desertion_risk(summaries, tutor_summary)
     activity_summary = build_activity_summary(participation_rows)
+    tutor_activity_summary = build_activity_summary(tutor_participation_rows)
 
     package = ReportPackage(
         run_id=run_id,
@@ -44,8 +48,11 @@ def run_extraction(run_id: str, request: RunRequest, settings: Settings) -> Tupl
         grade_rows=grade_rows,
         activities=activities,
         participation_rows=participation_rows,
+        tutor_participation_rows=tutor_participation_rows,
         summaries=summaries,
         activity_summary=activity_summary,
+        tutor_activity_summary=tutor_activity_summary,
+        tutor_summary=tutor_summary,
         notes=request.notes,
     )
     files = write_report(settings.data_dir, package)

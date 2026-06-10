@@ -1,5 +1,5 @@
 from app.models import Participant, ParticipationRow, TableRow
-from app.reporting import build_activity_summary, build_student_summaries
+from app.reporting import apply_desertion_risk, build_activity_summary, build_student_summaries, build_tutor_summary
 
 
 def test_build_student_summaries_classifies_activity_and_grades():
@@ -30,3 +30,18 @@ def test_build_activity_summary_groups_by_activity_and_action():
 
     assert summary == [{"activity_cmid": "1", "activity_name": "Foro", "action": "mensajes", "count": 7}]
 
+
+def test_tutor_summary_and_desertion_risk_are_added_to_students():
+    participants = [Participant(user_id="20", name="Luis Vera", email="luis@example.com", last_access="Nunca")]
+    summaries = build_student_summaries(participants, [], [])
+    tutor_rows = [ParticipationRow(activity_cmid="1", activity_name="Foro", action="mensajes", role_id="3", role_name="Docente", user_id="9", student_name="Tutora", count=5)]
+
+    tutor_summary = build_tutor_summary(tutor_rows, activities_count=8)
+    enriched = apply_desertion_risk(summaries, tutor_summary)
+
+    assert tutor_summary.active_tutors == 1
+    assert tutor_summary.actions_registered == 5
+    assert tutor_summary.participation_level == "Baja"
+    assert enriched[0].desertion_probability >= 0.7
+    assert enriched[0].desertion_risk_level == "Critico"
+    assert enriched[0].follow_up_alert is True

@@ -10,6 +10,7 @@ class RunRequest(BaseModel):
     username: Optional[str] = None
     password: Optional[SecretStr] = None
     sync_to_google: bool = True
+    include_tutor_participation: bool = True
     notes: Optional[str] = None
 
     @field_validator("moodle_base_url")
@@ -46,6 +47,8 @@ class ParticipationRow(BaseModel):
     activity_cmid: Optional[str] = None
     activity_name: Optional[str] = None
     action: Optional[str] = None
+    role_id: Optional[str] = None
+    role_name: Optional[str] = None
     user_id: Optional[str] = None
     student_name: Optional[str] = None
     count: int = 0
@@ -64,6 +67,19 @@ class StudentSummary(BaseModel):
     platform_level: str = "Sin evidencia"
     evaluative_level: str = "Sin evaluaciones"
     follow_up_alert: bool = False
+    tutor_activity_signal: str = "Sin dato"
+    desertion_probability: float = 0.0
+    desertion_risk_level: str = "Sin dato"
+    desertion_risk_factors: list[str] = Field(default_factory=list)
+
+
+class TutorSummary(BaseModel):
+    active_tutors: int = 0
+    actions_registered: int = 0
+    forum_posts: int = 0
+    activities_with_evidence: int = 0
+    activity_coverage: float = 0.0
+    participation_level: str = "Sin evidencia"
 
 
 class ReportPackage(BaseModel):
@@ -76,8 +92,11 @@ class ReportPackage(BaseModel):
     grade_rows: list[TableRow] = Field(default_factory=list)
     activities: list[Activity] = Field(default_factory=list)
     participation_rows: list[ParticipationRow] = Field(default_factory=list)
+    tutor_participation_rows: list[ParticipationRow] = Field(default_factory=list)
     summaries: list[StudentSummary] = Field(default_factory=list)
     activity_summary: list[dict[str, Any]] = Field(default_factory=list)
+    tutor_activity_summary: list[dict[str, Any]] = Field(default_factory=list)
+    tutor_summary: TutorSummary = Field(default_factory=TutorSummary)
     notes: Optional[str] = None
 
 
@@ -89,3 +108,24 @@ class RunStatus(BaseModel):
     message: Optional[str] = None
     files: list[str] = Field(default_factory=list)
     google_sync: Optional[str] = None
+
+
+class AutomationConfig(BaseModel):
+    enabled: bool = False
+    interval_minutes: int = 10080
+    sync_to_google: bool = True
+    include_tutor_participation: bool = True
+    notes: Optional[str] = "Corrida automatica programada."
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_run_at: Optional[datetime] = None
+    next_run_at: Optional[datetime] = None
+
+
+class AccessLogEntry(BaseModel):
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    username: str = "sin_autenticacion"
+    method: str
+    path: str
+    status_code: int
+    client_host: Optional[str] = None
+    user_agent: Optional[str] = None

@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     google_service_account_json: Optional[str] = None
 
     data_dir: Path = Path("data/runs")
+    automation_config_file: Path = Path("data/automation_config.json")
+    access_log_file: Path = Path("data/access_log.jsonl")
     request_timeout_seconds: int = 35
     auto_run_enabled: bool = False
     auto_run_interval_minutes: int = 10080

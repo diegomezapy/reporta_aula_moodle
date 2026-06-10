@@ -35,6 +35,15 @@ function setReportaAulaSecret(secret) {
   PropertiesService.getScriptProperties().setProperty(SECRET_PROPERTY, secret);
 }
 
+function initializeReportaAulaWorkbook() {
+  const ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
+  ensureSheetWithHeaders_(ss, 'CONFIG', ['clave', 'valor', 'actualizado_en']);
+  ensureSheetWithHeaders_(ss, 'USUARIOS', ['usuario', 'password_hash', 'nombre', 'correo', 'rol', 'activo', 'fecha_creacion', 'ultimo_acceso', 'observacion']);
+  ensureSheetWithHeaders_(ss, 'AUDITORIA', ['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
+  ensureSheetWithHeaders_(ss, 'ERRORES', ['timestamp', 'usuario', 'accion', 'error', 'detalle']);
+  return json_({ ok: true, initialized: ['CONFIG', 'USUARIOS', 'AUDITORIA', 'ERRORES'] });
+}
+
 function validateSecret_(secret) {
   const expected = PropertiesService.getScriptProperties().getProperty(SECRET_PROPERTY);
   if (expected && secret !== expected) {
@@ -74,9 +83,19 @@ function writeValues_(ss, name, values) {
   sheet.setFrozenRows(1);
 }
 
+function ensureSheetWithHeaders_(ss, name, headers) {
+  let sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.setFrozenRows(1);
+  }
+}
+
 function json_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
 }
-

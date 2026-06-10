@@ -133,6 +133,31 @@ class MoodleClient:
         return list(activities.values())
 
     def get_participation_rows(self, course_id: int, activities: list[Activity]) -> list[ParticipationRow]:
+        return self._get_participation_rows_for_role(course_id, activities, "5", "Estudiante")
+
+    def get_tutor_participation_rows(self, course_id: int, activities: list[Activity]) -> list[ParticipationRow]:
+        soup = BeautifulSoup(self.get(f"/report/participation/index.php?id={course_id}").text, "html.parser")
+        role_options = self._select_options(soup, "roleid")
+        tutor_roles = [
+            (role_id, role_name)
+            for role_id, role_name in role_options.items()
+            if self._is_tutor_role(role_name)
+        ]
+        if not tutor_roles:
+            tutor_roles = [("3", "Docente"), ("4", "Tutor")]
+
+        rows: list[ParticipationRow] = []
+        for role_id, role_name in tutor_roles:
+            rows.extend(self._get_participation_rows_for_role(course_id, activities, role_id, role_name))
+        return rows
+
+    def _get_participation_rows_for_role(
+        self,
+        course_id: int,
+        activities: list[Activity],
+        role_id: str,
+        role_name: str,
+    ) -> list[ParticipationRow]:
         report_html = self.get(f"/report/participation/index.php?id={course_id}").text
         soup = BeautifulSoup(report_html, "html.parser")
         action_options = self._select_options(soup, "actionid")
@@ -149,7 +174,7 @@ class MoodleClient:
         for cmid in cmids:
             activity = activity_by_cmid.get(cmid)
             for action_id, action_name in action_options.items():
-                query = f"/report/participation/index.php?id={course_id}&roleid=5&instanceid={cmid}&perpage=5000"
+                query = f"/report/participation/index.php?id={course_id}&roleid={role_id}&instanceid={cmid}&perpage=5000"
                 if action_id:
                     query += f"&actionid={action_id}"
                 page = self.get(query).text
@@ -162,6 +187,8 @@ class MoodleClient:
                             activity_cmid=cmid,
                             activity_name=activity.name if activity else report_instance_options.get(cmid, cmid),
                             action=action_name,
+                            role_id=role_id,
+                            role_name=role_name,
                             user_id=row.user_id,
                             student_name=student_name,
                             count=self._count_from_row(row),
@@ -169,6 +196,13 @@ class MoodleClient:
                         )
                     )
         return rows
+
+    def _is_tutor_role(self, role_name: str) -> bool:
+        clean = key_norm(role_name)
+        if "estudiante" in clean or "student" in clean:
+            return False
+        tutor_tokens = ["profesor", "docente", "tutor", "teacher", "editingteacher"]
+        return any(token in clean for token in tutor_tokens)
 
     def _select_options(self, soup: BeautifulSoup, select_name: str) -> dict[str, str]:
         select = soup.find("select", attrs={"name": select_name})

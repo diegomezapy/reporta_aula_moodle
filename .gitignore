@@ -8,6 +8,7 @@ __pycache__/
 .ruff_cache/
 data/runs/*
 !data/runs/.gitkeep
+data/*.json
+data/*.jsonl
 secrets/
 *.log
-

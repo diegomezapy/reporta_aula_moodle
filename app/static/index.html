@@ -14,6 +14,7 @@
           <p id="sheetTarget">Hoja vinculada</p>
         </div>
         <div class="top-actions">
+          <span id="authState" class="pill muted">Acceso</span>
           <span id="googleState" class="pill">Sheets</span>
           <button id="refreshRuns" class="icon-button" title="Actualizar" aria-label="Actualizar">↻</button>
         </div>
@@ -21,9 +22,13 @@
 
       <nav class="tabs" aria-label="Vistas">
         <button class="tab active" type="button" data-tab="dashboard">Tablero</button>
+        <button class="tab" type="button" data-tab="risk">Riesgo</button>
         <button class="tab" type="button" data-tab="students">Estudiantes</button>
+        <button class="tab" type="button" data-tab="tutor">Tutoría</button>
+        <button class="tab" type="button" data-tab="automation">Automatización</button>
         <button class="tab" type="button" data-tab="extract">Extracción</button>
         <button class="tab" type="button" data-tab="runs">Corridas</button>
+        <button class="tab" type="button" data-tab="audit">Auditoría</button>
       </nav>
 
       <section id="dashboardView" class="view active">
@@ -76,6 +81,26 @@
         </section>
       </section>
 
+      <section id="riskView" class="view">
+        <section class="risk-layout">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Probabilidad De Deserción</h2>
+              <span id="riskTotal" class="pill muted">0</span>
+            </div>
+            <div id="riskBars" class="bar-stack"></div>
+          </article>
+
+          <article class="panel risk-table-panel">
+            <div class="panel-head">
+              <h2>Priorización</h2>
+              <span id="riskHighCount" class="pill muted">0</span>
+            </div>
+            <div id="riskTable" class="risk-table"></div>
+          </article>
+        </section>
+      </section>
+
       <section id="studentsView" class="view">
         <section class="students-layout">
           <article class="panel students-panel">
@@ -87,6 +112,7 @@
               <input id="studentSearch" type="search" placeholder="Buscar" />
               <select id="studentFilter" aria-label="Filtro">
                 <option value="all">Todos</option>
+                <option value="high-risk">Riesgo alto</option>
                 <option value="alerts">Con alerta</option>
                 <option value="without-evidence">Sin evidencia</option>
                 <option value="without-grades">Sin evaluaciones</option>
@@ -101,6 +127,86 @@
               <span id="detailAlert" class="pill muted">--</span>
             </div>
             <div id="studentDetail" class="student-detail"></div>
+          </aside>
+        </section>
+      </section>
+
+      <section id="tutorView" class="view">
+        <section class="tutor-layout">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Desempeño Del Tutor</h2>
+              <span id="tutorLevel" class="pill muted">Sin dato</span>
+            </div>
+            <div id="tutorKpis" class="kpi-grid compact"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Actividad Tutorial</h2>
+              <span id="tutorActivityCount" class="pill muted">0</span>
+            </div>
+            <div id="tutorActivityBars" class="activity-bars"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="automationView" class="view">
+        <section class="automation-layout">
+          <form id="automationForm" class="panel">
+            <div class="panel-head">
+              <h2>Programación Periódica</h2>
+              <span id="automationState" class="pill muted">Inactiva</span>
+            </div>
+
+            <label class="checkline block">
+              <input name="enabled" type="checkbox" />
+              Activar extracción automática
+            </label>
+
+            <div class="grid-two">
+              <label>
+                Intervalo
+                <input name="interval_minutes" type="number" min="5" step="5" />
+              </label>
+              <label>
+                Unidad
+                <select id="intervalPreset" aria-label="Unidad de intervalo">
+                  <option value="10080">Semanal</option>
+                  <option value="1440">Diaria</option>
+                  <option value="60">Cada hora</option>
+                  <option value="custom">Manual</option>
+                </select>
+              </label>
+            </div>
+
+            <label class="checkline block">
+              <input name="sync_to_google" type="checkbox" />
+              Sincronizar con Google Sheets
+            </label>
+
+            <label class="checkline block">
+              <input name="include_tutor_participation" type="checkbox" />
+              Extraer participación del tutor
+            </label>
+
+            <label>
+              Nota de corrida
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+
+            <div class="form-row">
+              <button id="saveAutomation" type="submit">Guardar</button>
+              <button id="runAutomationNow" type="button" class="secondary">Ejecutar Ahora</button>
+            </div>
+          </form>
+
+          <aside class="panel">
+            <div class="panel-head">
+              <h2>Estado</h2>
+              <span class="pill muted">Scheduler</span>
+            </div>
+            <div id="automationDetail" class="detail-grid single"></div>
           </aside>
         </section>
       </section>
@@ -140,10 +246,16 @@
             </label>
 
             <div class="form-row">
-              <label class="checkline">
-                <input name="sync_to_google" type="checkbox" checked />
-                Sincronizar hoja
-              </label>
+              <div class="stacked-checks">
+                <label class="checkline">
+                  <input name="sync_to_google" type="checkbox" checked />
+                  Sincronizar hoja
+                </label>
+                <label class="checkline">
+                  <input name="include_tutor_participation" type="checkbox" checked />
+                  Incluir tutoría
+                </label>
+              </div>
               <button id="runButton" type="submit">Ejecutar</button>
             </div>
           </form>
@@ -165,6 +277,16 @@
             <span id="runCount" class="pill muted">0</span>
           </div>
           <div id="runsTable" class="runs-table"></div>
+        </section>
+      </section>
+
+      <section id="auditView" class="view">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Registro De Uso</h2>
+            <span id="auditCount" class="pill muted">0</span>
+          </div>
+          <div id="auditTable" class="audit-table"></div>
         </section>
       </section>
     </main>

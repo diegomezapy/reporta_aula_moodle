@@ -56,6 +56,15 @@ body {
   gap: 10px;
 }
 
+.student-badges {
+  flex-wrap: wrap;
+}
+
+.student-badges .pill {
+  white-space: normal;
+  text-align: center;
+}
+
 h1,
 h2,
 p {
@@ -160,6 +169,11 @@ h2 {
   grid-template-columns: repeat(6, minmax(140px, 1fr));
   gap: 12px;
   margin: 14px 0;
+}
+
+.kpi-grid.compact {
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  margin: 0;
 }
 
 .kpi {
@@ -267,6 +281,12 @@ h2 {
   color: var(--bad);
 }
 
+.bar-fill.neutral,
+.pill.neutral {
+  background: #eef1eb;
+  color: var(--muted);
+}
+
 .activity-row {
   display: grid;
   grid-template-columns: 1fr 130px;
@@ -303,6 +323,19 @@ h2 {
   align-items: start;
 }
 
+.risk-layout,
+.tutor-layout,
+.automation-layout {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.automation-layout {
+  grid-template-columns: minmax(360px, 520px) 1fr;
+}
+
 .students-panel,
 .detail-panel {
   min-height: 560px;
@@ -333,6 +366,52 @@ h2 {
   background: var(--surface);
   color: var(--ink);
   text-align: left;
+}
+
+.risk-table,
+.audit-table {
+  display: grid;
+  gap: 9px;
+}
+
+.risk-row,
+.audit-row {
+  display: grid;
+  gap: 10px;
+  align-items: center;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+
+.risk-row {
+  grid-template-columns: minmax(240px, 1fr) 90px 92px;
+}
+
+.risk-row.bad {
+  border-left: 4px solid var(--bad);
+}
+
+.risk-row.mid {
+  border-left: 4px solid var(--mid);
+}
+
+.risk-row.good {
+  border-left: 4px solid var(--good);
+}
+
+.audit-row {
+  grid-template-columns: 190px 170px minmax(240px, 1fr) 72px;
+}
+
+.audit-row code {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .student-row:hover,
@@ -378,6 +457,11 @@ h2 {
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   margin: 14px 0;
+}
+
+.detail-grid.single {
+  grid-template-columns: repeat(2, 1fr);
+  margin: 0;
 }
 
 .detail-grid div {
@@ -449,6 +533,20 @@ select:focus {
   margin: 0;
 }
 
+.checkline.block {
+  min-height: 42px;
+  margin-bottom: 12px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+}
+
+.stacked-checks {
+  display: grid;
+  gap: 10px;
+}
+
 .checkline input {
   width: 18px;
   height: 18px;
@@ -473,6 +571,15 @@ button:hover {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.62;
+}
+
+button.secondary {
+  background: #eef1eb;
+  color: var(--accent-strong);
+}
+
+button.secondary:hover {
+  background: #dfe8df;
 }
 
 .icon-button {
@@ -556,12 +663,25 @@ button:disabled {
   .analytics-grid,
   .dashboard-head,
   .extract-grid,
-  .students-layout {
+  .students-layout,
+  .risk-layout,
+  .tutor-layout,
+  .automation-layout {
     grid-template-columns: 1fr;
   }
 
   .student-row {
     grid-template-columns: minmax(180px, 1fr) 80px 120px;
+  }
+
+  .risk-row,
+  .audit-row {
+    grid-template-columns: minmax(180px, 1fr) 90px;
+  }
+
+  .risk-row .pill,
+  .audit-row .pill {
+    justify-self: start;
   }
 
   .student-row > span:nth-child(4) {
@@ -586,6 +706,8 @@ button:disabled {
   .kpi-grid,
   .grid-two,
   .student-row,
+  .risk-row,
+  .audit-row,
   .run-row,
   .detail-grid,
   .activity-row {

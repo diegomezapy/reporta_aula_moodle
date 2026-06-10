@@ -8,7 +8,7 @@ import httpx
 
 from app.config import Settings
 from app.models import ReportPackage
-from app.storage import rows_from_models
+from app.storage import report_tables
 
 
 def _table(rows: list[dict[str, Any]]) -> list[list[Any]]:
@@ -21,13 +21,18 @@ def _table(rows: list[dict[str, Any]]) -> list[list[Any]]:
 
 
 def package_tables(package: ReportPackage) -> dict[str, list[list[Any]]]:
+    tables = report_tables(package)
     return {
-        "Resumen": _table(rows_from_models(package.summaries)),
-        "Matriculados": _table(rows_from_models(package.participants)),
-        "Calificaciones": _table([row.model_dump(mode="json") for row in package.grade_rows]),
-        "Actividades": _table(rows_from_models(package.activities)),
-        "Resumen actividades": _table(package.activity_summary),
-        "Detalle participacion": _table(rows_from_models(package.participation_rows)),
+        "Resumen": _table(tables["resumen_estudiantes.csv"]),
+        "Riesgo desercion": _table(tables["riesgo_desercion.csv"]),
+        "Resumen tutor": _table(tables["resumen_tutor.csv"]),
+        "Matriculados": _table(tables["matriculados.csv"]),
+        "Calificaciones": _table(tables["calificaciones.csv"]),
+        "Actividades": _table(tables["actividades.csv"]),
+        "Resumen actividades": _table(tables["resumen_actividades.csv"]),
+        "Detalle participacion": _table(tables["detalle_participacion.csv"]),
+        "Resumen act tutor": _table(tables["resumen_actividades_tutor.csv"]),
+        "Detalle tutor": _table(tables["detalle_participacion_tutor.csv"]),
     }
 
 

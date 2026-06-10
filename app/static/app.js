@@ -1,4 +1,5 @@
 const form = document.querySelector("#runForm");
+const automationForm = document.querySelector("#automationForm");
 const runButton = document.querySelector("#runButton");
 const currentStatus = document.querySelector("#currentStatus");
 const statusMessage = document.querySelector("#statusMessage");
@@ -9,8 +10,11 @@ const runCount = document.querySelector("#runCount");
 const refreshRuns = document.querySelector("#refreshRuns");
 const sheetTarget = document.querySelector("#sheetTarget");
 const googleState = document.querySelector("#googleState");
+const authState = document.querySelector("#authState");
 const tabs = document.querySelectorAll(".tab");
 const views = document.querySelectorAll(".view");
+const intervalPreset = document.querySelector("#intervalPreset");
+const runAutomationNow = document.querySelector("#runAutomationNow");
 
 const dashboard = {
   courseTitle: document.querySelector("#courseTitle"),
@@ -27,6 +31,13 @@ const dashboard = {
   activityCount: document.querySelector("#activityCount"),
 };
 
+const risk = {
+  total: document.querySelector("#riskTotal"),
+  highCount: document.querySelector("#riskHighCount"),
+  bars: document.querySelector("#riskBars"),
+  table: document.querySelector("#riskTable"),
+};
+
 const students = {
   count: document.querySelector("#studentCount"),
   search: document.querySelector("#studentSearch"),
@@ -34,6 +45,23 @@ const students = {
   table: document.querySelector("#studentsTable"),
   detail: document.querySelector("#studentDetail"),
   detailAlert: document.querySelector("#detailAlert"),
+};
+
+const tutor = {
+  level: document.querySelector("#tutorLevel"),
+  kpis: document.querySelector("#tutorKpis"),
+  activityCount: document.querySelector("#tutorActivityCount"),
+  activityBars: document.querySelector("#tutorActivityBars"),
+};
+
+const automation = {
+  state: document.querySelector("#automationState"),
+  detail: document.querySelector("#automationDetail"),
+};
+
+const audit = {
+  count: document.querySelector("#auditCount"),
+  table: document.querySelector("#auditTable"),
 };
 
 let activeRun = null;
@@ -64,6 +92,10 @@ function dateText(value) {
   return date.toLocaleString("es-PY", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function probability(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
+}
+
 function escapeHtml(value, fallback = "") {
   const text = String(value || fallback);
   return text.replace(/[&<>"']/g, (char) => {
@@ -85,6 +117,18 @@ function studentKey(student) {
 function pct(value, total) {
   if (!total) return 0;
   return Math.round((value / total) * 100);
+}
+
+function labelClass(label) {
+  const clean = String(label || "").toLowerCase();
+  if (clean.includes("sin dato")) return "neutral";
+  if (clean.includes("critico") || clean.includes("alto")) return "bad";
+  if (clean.includes("alta")) return "good";
+  if (clean.includes("media") || clean.includes("medio")) return "mid";
+  if (clean.includes("baja")) return "warn";
+  if (clean.includes("bajo")) return "good";
+  if (clean.includes("sin")) return "bad";
+  return "neutral";
 }
 
 function fileLink(runId, filename) {
@@ -131,24 +175,14 @@ function renderBars(target, dist, order) {
   });
 }
 
-function labelClass(label) {
-  const clean = String(label || "").toLowerCase();
-  if (clean.includes("alta")) return "good";
-  if (clean.includes("media")) return "mid";
-  if (clean.includes("baja")) return "warn";
-  if (clean.includes("sin")) return "bad";
-  return "neutral";
-}
-
-function renderActivityBars(report) {
-  const rows = [...(report.activity_summary || [])]
+function renderActivityList(target, rows) {
+  const visibleRows = [...(rows || [])]
     .filter((row) => Number(row.count) > 0)
     .sort((a, b) => Number(b.count) - Number(a.count))
-    .slice(0, 10);
-  const max = Math.max(...rows.map((row) => Number(row.count)), 1);
-  dashboard.activityBars.replaceChildren();
-  dashboard.activityCount.textContent = String((report.activity_summary || []).length);
-  rows.forEach((row) => {
+    .slice(0, 12);
+  const max = Math.max(...visibleRows.map((row) => Number(row.count)), 1);
+  target.replaceChildren();
+  visibleRows.forEach((row) => {
     const item = document.createElement("div");
     item.className = "activity-row";
     item.innerHTML = `
@@ -158,20 +192,20 @@ function renderActivityBars(report) {
       </div>
       <div class="thin-track"><div style="width: ${Math.max(4, Math.round((Number(row.count) / max) * 100))}%"></div></div>
     `;
-    dashboard.activityBars.appendChild(item);
+    target.appendChild(item);
   });
 }
 
 function renderDashboard(report) {
   activeReport = report;
   const summaries = report.summaries || [];
-  const participantsCount = report.participants_count || (report.participants || []).length || summaries.length;
+  const participantsCount = report.participants_count || summaries.length;
   const totalActions = summaries.reduce((sum, row) => sum + Number(row.actions_registered || 0), 0);
   const forumPosts = summaries.reduce((sum, row) => sum + Number(row.forum_posts || 0), 0);
   const alerts = summaries.filter((row) => row.follow_up_alert).length;
-  const withoutEvidence = summaries.filter((row) => row.platform_level === "Sin evidencia").length;
-  const withoutGrades = summaries.filter((row) => row.evaluative_level === "Sin evaluaciones").length;
+  const highRisk = summaries.filter((row) => ["Critico", "Alto"].includes(row.desertion_risk_level)).length;
   const graded = summaries.filter((row) => Number(row.grade_cells_with_value || 0) > 0).length;
+  const tutorSummary = report.tutor_summary || {};
 
   dashboard.courseTitle.textContent = report.course_title || "Aula Moodle";
   dashboard.reportRunId.textContent = report.run_id || "--";
@@ -185,17 +219,62 @@ function renderDashboard(report) {
     kpi("Foros", number(forumPosts), "mensajes o interacciones"),
     kpi("Con calificación", number(graded), "con evidencia evaluativa", "good"),
     kpi("Alertas", number(alerts), "requieren seguimiento", alerts ? "warn" : "good"),
-    kpi("Sin evidencia", number(withoutEvidence + withoutGrades), "plataforma o evaluaciones", withoutEvidence + withoutGrades ? "bad" : "good"),
+    kpi("Riesgo alto", number(highRisk), "probabilidad de desercion", highRisk ? "bad" : "good"),
+    kpi("Tutoría", number(tutorSummary.actions_registered), tutorSummary.participation_level || "sin dato", labelClass(tutorSummary.participation_level)),
   );
 
-  const platformDist = distribution(summaries, "platform_level");
-  const evaluativeDist = distribution(summaries, "evaluative_level");
   dashboard.platformTotal.textContent = number(summaries.length);
   dashboard.evaluativeTotal.textContent = number(summaries.length);
-  renderBars(dashboard.platformBars, platformDist, ["Alta", "Media", "Baja", "Sin evidencia"]);
-  renderBars(dashboard.evaluativeBars, evaluativeDist, ["Alta", "Media", "Baja", "Sin evaluaciones"]);
-  renderActivityBars(report);
+  renderBars(dashboard.platformBars, distribution(summaries, "platform_level"), ["Alta", "Media", "Baja", "Sin evidencia"]);
+  renderBars(dashboard.evaluativeBars, distribution(summaries, "evaluative_level"), ["Alta", "Media", "Baja", "Sin evaluaciones"]);
+  dashboard.activityCount.textContent = String((report.activity_summary || []).length);
+  renderActivityList(dashboard.activityBars, report.activity_summary || []);
+  renderRisk(report);
+  renderTutor(report);
   renderStudents();
+}
+
+function renderRisk(report) {
+  const summaries = report.summaries || [];
+  const riskSummary = report.desertion_risk_summary || distribution(summaries, "desertion_risk_level");
+  const high = (riskSummary.Critico || 0) + (riskSummary.Alto || 0);
+  risk.total.textContent = number(summaries.length);
+  risk.highCount.textContent = number(high);
+  renderBars(risk.bars, riskSummary, ["Critico", "Alto", "Medio", "Bajo", "Sin dato"]);
+  risk.table.replaceChildren();
+  summaries
+    .filter((row) => row.desertion_risk_level)
+    .sort((a, b) => Number(b.desertion_probability) - Number(a.desertion_probability))
+    .forEach((row) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = `risk-row ${labelClass(row.desertion_risk_level)}`;
+      item.innerHTML = `
+        <span class="student-main"><strong>${escapeHtml(row.name, "Sin nombre")}</strong><small>${escapeHtml((row.desertion_risk_factors || []).join("; "), "Sin factores críticos")}</small></span>
+        <strong>${probability(row.desertion_probability)}</strong>
+        <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml(row.desertion_risk_level)}</span>
+      `;
+      item.addEventListener("click", () => {
+        selectedStudentKey = studentKey(row);
+        switchTab("students");
+        renderStudents();
+      });
+      risk.table.appendChild(item);
+    });
+}
+
+function renderTutor(report) {
+  const summary = report.tutor_summary || {};
+  tutor.level.textContent = summary.participation_level || "Sin dato";
+  tutor.level.className = `pill ${labelClass(summary.participation_level)}`;
+  tutor.kpis.replaceChildren(
+    kpi("Tutores", number(summary.active_tutors), "con actividad registrada"),
+    kpi("Acciones", number(summary.actions_registered), "participacion tutorial"),
+    kpi("Foros", number(summary.forum_posts), "mensajes o interacciones"),
+    kpi("Cobertura", probability(summary.activity_coverage), "actividades con evidencia"),
+  );
+  tutor.activityCount.textContent = String((report.tutor_activity_summary || []).length);
+  renderActivityList(tutor.activityBars, report.tutor_activity_summary || []);
 }
 
 function renderStudents() {
@@ -207,6 +286,7 @@ function renderStudents() {
     const matchesQuery = !query || haystack.includes(query);
     const matchesFilter =
       filter === "all" ||
+      (filter === "high-risk" && ["Critico", "Alto"].includes(row.desertion_risk_level)) ||
       (filter === "alerts" && row.follow_up_alert) ||
       (filter === "without-evidence" && row.platform_level === "Sin evidencia") ||
       (filter === "without-grades" && row.evaluative_level === "Sin evaluaciones");
@@ -216,7 +296,7 @@ function renderStudents() {
   students.count.textContent = `${filtered.length}/${rows.length}`;
   students.table.replaceChildren();
   filtered
-    .sort((a, b) => Number(b.follow_up_alert) - Number(a.follow_up_alert) || Number(b.actions_registered) - Number(a.actions_registered))
+    .sort((a, b) => Number(b.desertion_probability) - Number(a.desertion_probability) || Number(b.actions_registered) - Number(a.actions_registered))
     .forEach((row) => {
       const item = document.createElement("button");
       item.type = "button";
@@ -227,7 +307,7 @@ function renderStudents() {
         <span>${number(row.actions_registered)}</span>
         <span>${escapeHtml(row.platform_level)}</span>
         <span>${escapeHtml(row.evaluative_level)}</span>
-        <span class="pill ${row.follow_up_alert ? "error" : "muted"}">${row.follow_up_alert ? "Alerta" : "OK"}</span>
+        <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml(row.desertion_risk_level || "OK")}</span>
       `;
       item.addEventListener("click", () => selectStudent(row));
       students.table.appendChild(item);
@@ -255,10 +335,13 @@ function selectStudent(row, updateKey = true) {
       <div><span>Evaluaciones</span><strong>${number(row.grade_cells_with_value)}</strong></div>
       <div><span>Total curso</span><strong>${escapeHtml(row.course_total, "--")}</strong></div>
       <div><span>ID Moodle</span><strong>${escapeHtml(row.user_id, "--")}</strong></div>
+      <div><span>Riesgo</span><strong>${probability(row.desertion_probability)} · ${escapeHtml(row.desertion_risk_level, "--")}</strong></div>
+      <div><span>Tutoría</span><strong>${escapeHtml(row.tutor_activity_signal, "--")}</strong></div>
     </div>
     <div class="student-badges">
       <span class="pill ${labelClass(row.platform_level)}">${escapeHtml(row.platform_level)}</span>
       <span class="pill ${labelClass(row.evaluative_level)}">${escapeHtml(row.evaluative_level)}</span>
+      <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml((row.desertion_risk_factors || [])[0], "Sin factor crítico")}</span>
     </div>
   `;
 }
@@ -276,6 +359,7 @@ async function loadDefaults() {
   form.elements.course_id.value = defaults.course_id || "";
   sheetTarget.textContent = defaults.spreadsheet_id ? `Hoja ${defaults.spreadsheet_id}` : "Hoja sin configurar";
   googleState.textContent = defaults.has_google_sink ? "Sheets activo" : "Sheets pendiente";
+  authState.textContent = defaults.has_basic_auth ? "Acceso protegido" : "Acceso local";
 }
 
 async function loadLatestReport() {
@@ -288,16 +372,76 @@ async function loadLatestReport() {
 }
 
 function renderNoReport() {
-  dashboard.kpiGrid.replaceChildren(
-    kpi("Estudiantes", "--", "sin datos"),
-    kpi("Acciones", "--", "sin datos"),
-    kpi("Alertas", "--", "sin datos"),
-  );
+  dashboard.kpiGrid.replaceChildren(kpi("Estudiantes", "--", "sin datos"), kpi("Acciones", "--", "sin datos"), kpi("Alertas", "--", "sin datos"));
   dashboard.platformBars.replaceChildren();
   dashboard.evaluativeBars.replaceChildren();
   dashboard.activityBars.replaceChildren();
+  risk.bars.replaceChildren();
+  risk.table.replaceChildren();
+  tutor.kpis.replaceChildren();
+  tutor.activityBars.replaceChildren();
   students.table.replaceChildren();
   renderEmptyDetail();
+}
+
+async function loadAutomation() {
+  const res = await fetch("/api/automation");
+  if (!res.ok) return;
+  const config = await res.json();
+  automationForm.elements.enabled.checked = Boolean(config.enabled);
+  automationForm.elements.interval_minutes.value = config.interval_minutes || 10080;
+  automationForm.elements.sync_to_google.checked = Boolean(config.sync_to_google);
+  automationForm.elements.include_tutor_participation.checked = Boolean(config.include_tutor_participation);
+  automationForm.elements.notes.value = config.notes || "";
+  automation.state.textContent = config.enabled ? "Activa" : "Inactiva";
+  automation.state.className = `pill ${config.enabled ? "good" : "muted"}`;
+  automation.detail.innerHTML = `
+    <div><span>Última corrida</span><strong>${escapeHtml(dateText(config.last_run_at))}</strong></div>
+    <div><span>Próxima corrida</span><strong>${escapeHtml(dateText(config.next_run_at))}</strong></div>
+    <div><span>Intervalo</span><strong>${number(config.interval_minutes)} min</strong></div>
+    <div><span>Actualizado</span><strong>${escapeHtml(dateText(config.updated_at))}</strong></div>
+  `;
+}
+
+async function saveAutomation(event) {
+  event.preventDefault();
+  const payload = {
+    enabled: automationForm.elements.enabled.checked,
+    interval_minutes: Number(automationForm.elements.interval_minutes.value || 10080),
+    sync_to_google: automationForm.elements.sync_to_google.checked,
+    include_tutor_participation: automationForm.elements.include_tutor_participation.checked,
+    notes: automationForm.elements.notes.value || "Corrida automatica programada.",
+  };
+  const res = await fetch("/api/automation", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    setStatus("Error", "No se pudo guardar la automatización.", true);
+    return;
+  }
+  setStatus("Guardado", "La automatización quedó configurada.");
+  await loadAutomation();
+}
+
+async function loadAudit() {
+  const res = await fetch("/api/audit/access?limit=80");
+  if (!res.ok) return;
+  const rows = await res.json();
+  audit.count.textContent = number(rows.length);
+  audit.table.replaceChildren();
+  rows.forEach((row) => {
+    const item = document.createElement("div");
+    item.className = "audit-row";
+    item.innerHTML = `
+      <span>${escapeHtml(dateText(row.timestamp))}</span>
+      <strong>${escapeHtml(row.username)}</strong>
+      <code>${escapeHtml(row.method)} ${escapeHtml(row.path)}</code>
+      <span class="pill ${Number(row.status_code) >= 400 ? "error" : "muted"}">${escapeHtml(row.status_code)}</span>
+    `;
+    audit.table.appendChild(item);
+  });
 }
 
 async function loadRuns() {
@@ -367,6 +511,7 @@ form.addEventListener("submit", async (event) => {
     password: form.elements.password.value || null,
     notes: form.elements.notes.value || null,
     sync_to_google: form.elements.sync_to_google.checked,
+    include_tutor_participation: form.elements.include_tutor_participation.checked,
   };
 
   const res = await fetch("/api/runs", {
@@ -392,11 +537,31 @@ tabs.forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.
 refreshRuns.addEventListener("click", async () => {
   await loadRuns();
   await loadLatestReport();
+  await loadAutomation();
+  await loadAudit();
 });
 students.search.addEventListener("input", renderStudents);
 students.filter.addEventListener("change", renderStudents);
+automationForm.addEventListener("submit", saveAutomation);
+intervalPreset.addEventListener("change", () => {
+  if (intervalPreset.value !== "custom") automationForm.elements.interval_minutes.value = intervalPreset.value;
+});
+runAutomationNow.addEventListener("click", async () => {
+  const res = await fetch("/api/automation/run-now", { method: "POST" });
+  if (!res.ok) {
+    setStatus("Error", "No se pudo iniciar la corrida programada.", true);
+    return;
+  }
+  const run = await res.json();
+  activeRun = run.run_id;
+  renderRun(run);
+  switchTab("dashboard");
+  pollTimer = setInterval(() => pollRun(activeRun), 2500);
+});
 
 loadDefaults()
   .then(loadRuns)
   .then(loadLatestReport)
+  .then(loadAutomation)
+  .then(loadAudit)
   .catch((error) => setStatus("Error", error.message, true));

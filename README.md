@@ -17,7 +17,9 @@ Proyecto GAS asociado:
 - Libro de calificaciones.
 - Actividades detectadas en el curso.
 - Informe nativo de participacion por actividad.
+- Participacion del tutor/docente desde el informe nativo de participacion, cuando Moodle expone esos roles.
 - Resumen por estudiante con indicadores separados de actividad en plataforma y participacion evaluativa.
+- Senales heuristicas de probabilidad de desercion a partir de actividad, evaluacion, foros, ultimo acceso y acompanamiento tutorial.
 
 ## Tablero
 
@@ -29,6 +31,10 @@ La primera pantalla es un tablero operativo con:
 - Ranking de actividades con mas evidencia.
 - Tabla filtrable por estudiante.
 - Panel individual con ultimo acceso, acciones, foros, evaluaciones, total del curso e indicador de seguimiento.
+- Vista de riesgo de desercion con priorizacion por estudiante.
+- Vista de tutoria con acciones, foros, cobertura y actividades con evidencia.
+- Vista de automatizacion para activar corridas periodicas desde la web.
+- Vista de auditoria con registro de uso de la app.
 
 Los endpoints usados por el tablero devuelven un payload compacto y no incluyen las tablas crudas de Moodle. Los archivos completos quedan disponibles como evidencias de la corrida.
 
@@ -42,6 +48,20 @@ APP_PASSWORD=un-password-largo
 ```
 
 Sin esas variables la app queda abierta, lo cual solo se recomienda en ejecucion local.
+
+Cada acceso queda registrado localmente en `data/access_log.jsonl` con usuario, fecha, ruta, estado HTTP y origen tecnico. No se registran contrasenas.
+
+## Automatizacion
+
+La vista `Automatización` permite:
+
+- activar o pausar extracciones periodicas;
+- definir intervalo minimo de 5 minutos;
+- sincronizar o no con Google Sheets;
+- incluir o excluir la extraccion de participacion del tutor;
+- ejecutar una corrida inmediata usando la configuracion guardada.
+
+La configuracion se guarda en `data/automation_config.json`, archivo ignorado por Git.
 
 ## Ejecucion Local
 
@@ -75,7 +95,10 @@ No guardes usuario, contrasena ni tokens en Git.
 
 ```javascript
 setReportaAulaSecret('un-token-largo-y-privado')
+initializeReportaAulaWorkbook()
 ```
+
+`initializeReportaAulaWorkbook()` prepara las hojas operativas `CONFIG`, `USUARIOS`, `AUDITORIA` y `ERRORES`.
 
 4. Desplegar como Web App.
 5. Configurar en `.env`:
@@ -85,7 +108,7 @@ GAS_WEBAPP_URL=https://script.google.com/macros/s/XXXXX/exec
 GAS_SHARED_SECRET=un-token-largo-y-privado
 ```
 
-La app enviara las hojas `Corrida`, `Resumen`, `Matriculados`, `Calificaciones`, `Actividades`, `Resumen actividades` y `Detalle participacion`.
+La app enviara las hojas `Corrida`, `Resumen`, `Riesgo desercion`, `Resumen tutor`, `Matriculados`, `Calificaciones`, `Actividades`, `Resumen actividades`, `Detalle participacion`, `Resumen act tutor` y `Detalle tutor`.
 
 ## Alternativa Con Google Sheets API
 
@@ -104,11 +127,15 @@ Cada corrida genera una carpeta en `data/runs/<run_id>/` con:
 - `reporte.json`
 - `reporte_aula_moodle.xlsx`
 - `resumen_estudiantes.csv`
+- `riesgo_desercion.csv`
+- `resumen_tutor.csv`
 - `matriculados.csv`
 - `calificaciones.csv`
 - `actividades.csv`
 - `resumen_actividades.csv`
 - `detalle_participacion.csv`
+- `resumen_actividades_tutor.csv`
+- `detalle_participacion_tutor.csv`
 - `status.json`
 
 ## Despliegue Sugerido
@@ -131,3 +158,10 @@ AUTO_RUN_INTERVAL_MINUTES=10080
 ```
 
 `10080` equivale a una corrida semanal. La programacion integrada sirve para despliegues persistentes; en servicios que duermen conviene usar un cron externo que llame `POST /api/runs`.
+
+## Documentacion Operativa
+
+- `docs/manual_usuario.md`
+- `docs/manual_tecnico.md`
+- `docs/diccionario_datos.md`
+- `BITACORA.md`
