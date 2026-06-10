@@ -8,75 +8,166 @@
   </head>
   <body>
     <main class="shell">
-      <section class="topbar">
+      <header class="topbar">
         <div>
           <h1>Reporta Aula Moodle</h1>
           <p id="sheetTarget">Hoja vinculada</p>
         </div>
-        <button id="refreshRuns" class="icon-button" title="Actualizar corridas" aria-label="Actualizar corridas">↻</button>
-      </section>
+        <div class="top-actions">
+          <span id="googleState" class="pill">Sheets</span>
+          <button id="refreshRuns" class="icon-button" title="Actualizar" aria-label="Actualizar">↻</button>
+        </div>
+      </header>
 
-      <section class="workspace">
-        <form id="runForm" class="panel">
-          <div class="panel-head">
-            <h2>Extracción</h2>
-            <span id="googleState" class="pill">Sheets</span>
+      <nav class="tabs" aria-label="Vistas">
+        <button class="tab active" type="button" data-tab="dashboard">Tablero</button>
+        <button class="tab" type="button" data-tab="students">Estudiantes</button>
+        <button class="tab" type="button" data-tab="extract">Extracción</button>
+        <button class="tab" type="button" data-tab="runs">Corridas</button>
+      </nav>
+
+      <section id="dashboardView" class="view active">
+        <section class="dashboard-head">
+          <div class="panel course-panel">
+            <div class="panel-head">
+              <h2 id="courseTitle">Sin reporte cargado</h2>
+              <span id="reportRunId" class="pill muted">--</span>
+            </div>
+            <div class="course-meta">
+              <span id="courseId">Curso --</span>
+              <span id="generatedAt">--</span>
+              <span id="moodleBase">Moodle</span>
+            </div>
           </div>
+          <section class="status-card">
+            <div>
+              <span id="currentStatus" class="pill muted">Listo</span>
+              <p id="statusMessage">Sin corrida activa.</p>
+            </div>
+          </section>
+        </section>
 
-          <label>
-            Aula Moodle
-            <input name="moodle_base_url" type="url" required />
-          </label>
+        <section id="kpiGrid" class="kpi-grid"></section>
 
-          <div class="grid-two">
-            <label>
-              Curso ID
-              <input name="course_id" type="number" min="1" required />
-            </label>
-            <label>
-              Usuario
-              <input name="username" autocomplete="username" />
-            </label>
-          </div>
+        <section class="analytics-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Actividad En Plataforma</h2>
+              <span id="platformTotal" class="pill muted">0</span>
+            </div>
+            <div id="platformBars" class="bar-stack"></div>
+          </article>
 
-          <label>
-            Contraseña
-            <input name="password" type="password" autocomplete="current-password" />
-          </label>
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Participación Evaluativa</h2>
+              <span id="evaluativeTotal" class="pill muted">0</span>
+            </div>
+            <div id="evaluativeBars" class="bar-stack"></div>
+          </article>
 
-          <label>
-            Nota
-            <textarea name="notes" rows="3"></textarea>
-          </label>
-
-          <div class="form-row">
-            <label class="checkline">
-              <input name="sync_to_google" type="checkbox" checked />
-              Sincronizar hoja
-            </label>
-            <button id="runButton" type="submit">Ejecutar</button>
-          </div>
-        </form>
-
-        <section class="panel result-panel">
-          <div class="panel-head">
-            <h2>Estado</h2>
-            <span id="currentStatus" class="pill muted">Listo</span>
-          </div>
-          <div id="statusMessage" class="status-message">Sin corrida activa.</div>
-          <div id="files" class="file-list"></div>
+          <article class="panel activity-panel">
+            <div class="panel-head">
+              <h2>Actividades Con Más Evidencia</h2>
+              <span id="activityCount" class="pill muted">0</span>
+            </div>
+            <div id="activityBars" class="activity-bars"></div>
+          </article>
         </section>
       </section>
 
-      <section class="panel runs-panel">
-        <div class="panel-head">
-          <h2>Corridas</h2>
-          <span id="runCount" class="pill muted">0</span>
-        </div>
-        <div id="runsTable" class="runs-table"></div>
+      <section id="studentsView" class="view">
+        <section class="students-layout">
+          <article class="panel students-panel">
+            <div class="panel-head">
+              <h2>Estudiantes</h2>
+              <span id="studentCount" class="pill muted">0</span>
+            </div>
+            <div class="student-tools">
+              <input id="studentSearch" type="search" placeholder="Buscar" />
+              <select id="studentFilter" aria-label="Filtro">
+                <option value="all">Todos</option>
+                <option value="alerts">Con alerta</option>
+                <option value="without-evidence">Sin evidencia</option>
+                <option value="without-grades">Sin evaluaciones</option>
+              </select>
+            </div>
+            <div id="studentsTable" class="students-table"></div>
+          </article>
+
+          <aside class="panel detail-panel">
+            <div class="panel-head">
+              <h2>Detalle</h2>
+              <span id="detailAlert" class="pill muted">--</span>
+            </div>
+            <div id="studentDetail" class="student-detail"></div>
+          </aside>
+        </section>
+      </section>
+
+      <section id="extractView" class="view">
+        <section class="extract-grid">
+          <form id="runForm" class="panel">
+            <div class="panel-head">
+              <h2>Nueva Extracción</h2>
+              <span class="pill muted">Moodle</span>
+            </div>
+
+            <label>
+              Aula Moodle
+              <input name="moodle_base_url" type="url" required />
+            </label>
+
+            <div class="grid-two">
+              <label>
+                Curso ID
+                <input name="course_id" type="number" min="1" required />
+              </label>
+              <label>
+                Usuario
+                <input name="username" autocomplete="username" />
+              </label>
+            </div>
+
+            <label>
+              Contraseña
+              <input name="password" type="password" autocomplete="current-password" />
+            </label>
+
+            <label>
+              Nota
+              <textarea name="notes" rows="3"></textarea>
+            </label>
+
+            <div class="form-row">
+              <label class="checkline">
+                <input name="sync_to_google" type="checkbox" checked />
+                Sincronizar hoja
+              </label>
+              <button id="runButton" type="submit">Ejecutar</button>
+            </div>
+          </form>
+
+          <article class="panel result-panel">
+            <div class="panel-head">
+              <h2>Evidencias</h2>
+              <span id="fileCount" class="pill muted">0</span>
+            </div>
+            <div id="files" class="file-list"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="runsView" class="view">
+        <section class="panel runs-panel">
+          <div class="panel-head">
+            <h2>Corridas</h2>
+            <span id="runCount" class="pill muted">0</span>
+          </div>
+          <div id="runsTable" class="runs-table"></div>
+        </section>
       </section>
     </main>
     <script src="/static/app.js"></script>
   </body>
 </html>
-

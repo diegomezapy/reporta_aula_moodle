@@ -11,6 +11,8 @@ class Settings(BaseSettings):
 
     app_env: str = "local"
     app_secret_key: SecretStr = Field(default=SecretStr("dev-only"))
+    app_username: Optional[str] = None
+    app_password: Optional[SecretStr] = None
 
     moodle_base_url: str = "https://www.virtual.facen.una.py/gradofacen"
     moodle_course_id: int = 1718

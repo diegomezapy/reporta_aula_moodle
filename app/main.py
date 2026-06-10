@@ -2,23 +2,63 @@ from __future__ import annotations
 
 import threading
 import time
+import secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.models import RunRequest, RunStatus
+from app.models import ReportPackage, RunRequest, RunStatus
 from app.runner import make_run_id, run_extraction
-from app.storage import ensure_run_dir, list_statuses, read_status, write_status
+from app.storage import ensure_run_dir, latest_completed_report, list_statuses, read_report, read_status, write_status
 
 settings = get_settings()
 settings.data_dir.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Reporta Aula Moodle", version="0.1.0")
 app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), name="static")
+
+
+@app.middleware("http")
+async def protect_private_app(request: Request, call_next):
+    if not settings.app_username or not settings.app_password:
+        return await call_next(request)
+    auth = request.headers.get("authorization", "")
+    scheme, _, encoded = auth.partition(" ")
+    valid = False
+    if scheme.lower() == "basic" and encoded:
+        import base64
+
+        try:
+            decoded = base64.b64decode(encoded).decode("utf-8")
+            username, _, password = decoded.partition(":")
+            valid = secrets.compare_digest(username, settings.app_username) and secrets.compare_digest(
+                password, settings.app_password.get_secret_value()
+            )
+        except Exception:
+            valid = False
+    if valid:
+        return await call_next(request)
+    from fastapi.responses import Response
+
+    return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="Reporta Aula Moodle"'})
+
+
+def _dashboard_payload(report: ReportPackage) -> dict[str, object]:
+    return {
+        "run_id": report.run_id,
+        "generated_at": report.generated_at,
+        "moodle_base_url": report.moodle_base_url,
+        "course_id": report.course_id,
+        "course_title": report.course_title,
+        "participants_count": len(report.participants),
+        "summaries": [summary.model_dump(mode="json") for summary in report.summaries],
+        "activity_summary": report.activity_summary,
+        "notes": report.notes,
+    }
 
 
 def _execute_background_run(run_id: str, request: RunRequest, initial_status: RunStatus) -> None:
@@ -96,6 +136,38 @@ def run_status(run_id: str) -> RunStatus:
     if not status:
         raise HTTPException(status_code=404, detail="Corrida no encontrada.")
     return status
+
+
+@app.get("/api/runs/{run_id}/report")
+def run_report(run_id: str) -> ReportPackage:
+    report = read_report(settings.data_dir / run_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado para esta corrida.")
+    return report
+
+
+@app.get("/api/runs/{run_id}/dashboard")
+def run_dashboard(run_id: str) -> dict[str, object]:
+    report = read_report(settings.data_dir / run_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Reporte no encontrado para esta corrida.")
+    return _dashboard_payload(report)
+
+
+@app.get("/api/reports/latest")
+def latest_report() -> ReportPackage:
+    report = latest_completed_report(settings.data_dir)
+    if not report:
+        raise HTTPException(status_code=404, detail="Todavia no hay reportes completados.")
+    return report
+
+
+@app.get("/api/reports/latest/dashboard")
+def latest_dashboard() -> dict[str, object]:
+    report = latest_completed_report(settings.data_dir)
+    if not report:
+        raise HTTPException(status_code=404, detail="Todavia no hay reportes completados.")
+    return _dashboard_payload(report)
 
 
 @app.get("/api/runs/{run_id}/files/{filename}")

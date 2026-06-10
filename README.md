@@ -19,6 +19,30 @@ Proyecto GAS asociado:
 - Informe nativo de participacion por actividad.
 - Resumen por estudiante con indicadores separados de actividad en plataforma y participacion evaluativa.
 
+## Tablero
+
+La primera pantalla es un tablero operativo con:
+
+- KPIs generales del aula.
+- Distribucion de actividad en plataforma.
+- Distribucion de participacion evaluativa.
+- Ranking de actividades con mas evidencia.
+- Tabla filtrable por estudiante.
+- Panel individual con ultimo acceso, acciones, foros, evaluaciones, total del curso e indicador de seguimiento.
+
+Los endpoints usados por el tablero devuelven un payload compacto y no incluyen las tablas crudas de Moodle. Los archivos completos quedan disponibles como evidencias de la corrida.
+
+## Privacidad
+
+La aplicacion maneja datos personales de estudiantes. En produccion configura Basic Auth:
+
+```bash
+APP_USERNAME=admin
+APP_PASSWORD=un-password-largo
+```
+
+Sin esas variables la app queda abierta, lo cual solo se recomienda en ejecucion local.
+
 ## Ejecucion Local
 
 ```bash
@@ -107,4 +131,3 @@ AUTO_RUN_INTERVAL_MINUTES=10080
 ```
 
 `10080` equivale a una corrida semanal. La programacion integrada sirve para despliegues persistentes; en servicios que duermen conviene usar un cron externo que llame `POST /api/runs`.
-

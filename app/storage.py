@@ -28,11 +28,28 @@ def read_status(path: Path) -> Optional[RunStatus]:
     return RunStatus.model_validate_json(status_path.read_text(encoding="utf-8"))
 
 
+def read_report(path: Path) -> Optional[ReportPackage]:
+    report_path = path / "reporte.json"
+    if not report_path.exists():
+        return None
+    return ReportPackage.model_validate_json(report_path.read_text(encoding="utf-8"))
+
+
 def list_statuses(base_dir: Path) -> list[RunStatus]:
     if not base_dir.exists():
         return []
     statuses = [status for item in base_dir.iterdir() if item.is_dir() for status in [read_status(item)] if status]
     return sorted(statuses, key=lambda item: item.created_at, reverse=True)
+
+
+def latest_completed_report(base_dir: Path) -> Optional[ReportPackage]:
+    for status in list_statuses(base_dir):
+        if status.status != "done":
+            continue
+        report = read_report(base_dir / status.run_id)
+        if report:
+            return report
+    return None
 
 
 def _write_csv(path: Path, rows: Iterable[dict[str, Any]]) -> None:
