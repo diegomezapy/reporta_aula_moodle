@@ -88,6 +88,7 @@ La primera pantalla incluye:
 - Vista de auditoria con registro de uso de la app.
 - PWA basica con `manifest.json` y `service-worker.js`.
 - Boton visible `Actualizar version` para limpiar cache local, revisar el service worker y recargar la app con cache-busting.
+- Boton visible `Generar extraccion` en la vista `Extraccion` para ejecutar la corrida GAS y actualizar el tablero con la evidencia generada.
 - Boton `Instalar` cuando el navegador ofrece instalacion PWA.
 - Footer con version operativa, fecha build y estado de cache.
 
@@ -99,9 +100,11 @@ La app publica muestra la version activa en el footer y en la vista `Corridas`.
 
 Version actual:
 
-`2026.06.11-master-version`
+`2026.06.11-generate-extraction`
 
 El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
+
+El boton `Generar extraccion` llama a Apps Script con `api=runSample`. La corrida escribe en Google Sheets, guarda una evidencia JSON en Drive y devuelve el reporte para refrescar el tablero. La extraccion real Moodle con credenciales institucionales debe reemplazar esa accion de muestra cuando el flujo seguro de credenciales quede validado en GAS.
 
 ## Privacidad Y Acceso
 

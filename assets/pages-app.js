@@ -1,6 +1,6 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.2";
-const APP_VERSION = "2026.06.11-master-version";
+const APP_VERSION = "2026.06.11-generate-extraction";
 const APP_BUILD_DATE = "2026-06-11";
 const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
 
@@ -69,6 +69,7 @@ const els = {
   gasUrl: $("#gasUrl"),
   runForm: $("#runForm"),
   runButton: $("#runButton"),
+  generateExtraction: $("#generateExtraction"),
   updateVersion: $("#updateVersion"),
   installApp: $("#installApp"),
   versionStamp: $("#versionStamp"),
@@ -367,6 +368,52 @@ function loadGasReport(endpoint = GAS_REPORT_URL) {
       reject(new Error("No se pudo cargar el endpoint JSONP de GAS"));
     };
     script.src = gasEndpoint(endpoint, { api: "report", callback: callbackName, ts: Date.now() });
+    document.head.appendChild(script);
+  });
+}
+
+function runGasExtraction(endpoint = GAS_REPORT_URL) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `reportaAulaRun_${Date.now()}_${Math.round(Math.random() * 10000)}`;
+    const script = document.createElement("script");
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("Tiempo de espera agotado al generar la extraccion"));
+    }, 20000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+    }
+    window[callbackName] = (payload) => {
+      cleanup();
+      if (!payload || payload.ok !== true || !payload.report) {
+        reject(new Error((payload && payload.error) || "GAS no devolvio una extraccion valida"));
+        return;
+      }
+      const report = normalizeReport({
+        ...payload.report,
+        spreadsheet_id: payload.spreadsheetId,
+        drive_folder_id: payload.driveFolderId,
+        drive_folder_url: payload.driveFolderUrl,
+        evidence_files: payload.evidence ? [payload.evidence] : [],
+      }, "gas");
+      resolve({ report, payload });
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("No se pudo ejecutar el endpoint de extraccion GAS"));
+    };
+    const courseId = document.querySelector("[name='course_id']")?.value || "1718";
+    const spreadsheetId = document.querySelector("[name='spreadsheet_id']")?.value || "";
+    script.src = gasEndpoint(endpoint, {
+      api: "runSample",
+      callback: callbackName,
+      courseId,
+      spreadsheetId,
+      courseTitle: state.report?.course_title || "Analitica de Big Data - Extraccion GAS",
+      ts: Date.now(),
+    });
     document.head.appendChild(script);
   });
 }
@@ -843,6 +890,28 @@ async function testGas(event) {
   }
 }
 
+async function generateExtraction() {
+  const base = String(els.gasUrl.value || GAS_REPORT_URL).trim().replace(/\/+$/, "");
+  localStorage.setItem("reportaAulaGasUrl", base);
+  els.generateExtraction.disabled = true;
+  setStatus("Generando extraccion", "Apps Script esta escribiendo en Sheets y guardando evidencia en Drive.");
+  try {
+    const result = await runGasExtraction(base);
+    state.report = result.report;
+    state.source = "gas";
+    els.googleState.textContent = "GAS conectado";
+    els.googleState.className = "pill good";
+    els.authState.textContent = "Extraccion generada";
+    const evidence = result.payload.evidence?.file_name ? ` Evidencia: ${result.payload.evidence.file_name}.` : "";
+    setStatus("Extraccion generada", `La corrida fue guardada en Sheets/Drive.${evidence}`);
+    renderDashboard();
+  } catch (error) {
+    setStatus("Extraccion no generada", error.message || String(error), true);
+  } finally {
+    els.generateExtraction.disabled = false;
+  }
+}
+
 async function init() {
   renderVersionStamp();
   window.addEventListener("beforeinstallprompt", (event) => {
@@ -869,6 +938,7 @@ async function init() {
   });
   els.updateVersion.addEventListener("click", updateAppVersion);
   els.installApp.addEventListener("click", installCurrentApp);
+  els.generateExtraction.addEventListener("click", generateExtraction);
   els.runForm.addEventListener("submit", testGas);
   els.gasUrl.value = localStorage.getItem("reportaAulaGasUrl") || GAS_REPORT_URL;
   await registerServiceWorker();

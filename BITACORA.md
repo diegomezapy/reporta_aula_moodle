@@ -531,3 +531,53 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 ### Recomendacion
 
 - Mantener este deployment activo y evitar reemplazarlo por otro sin repetir las verificaciones `/exec?api=1` y `/exec?api=report&callback=cb`.
+
+## 2026-06-11 14:49 - Boton para generar extraccion desde la app
+
+### Objetivo de la intervencion
+
+- Agregar un boton visible `Generar extraccion` en la vista `Extraccion`.
+- Conectar el boton al endpoint GAS disponible para ejecutar una corrida y actualizar el tablero.
+
+### Diagnostico inicial
+
+- La app tenia boton `Verificar GAS`, pero no un boton separado para iniciar una corrida.
+- El endpoint GAS ya exponia `api=runSample`, capaz de escribir en Sheets y guardar evidencia JSON en Drive.
+
+### Acciones realizadas
+
+- Se agrego el boton `Generar extraccion` en `index.html`.
+- Se agrego `runGasExtraction()` en `assets/pages-app.js`.
+- El boton llama a GAS por JSONP con `api=runSample`, `courseId`, `spreadsheetId`, `courseTitle` y `ts`.
+- Cuando GAS responde `ok:true`, la app:
+  - normaliza el reporte;
+  - actualiza el tablero;
+  - muestra estado `Extraccion generada`;
+  - muestra la evidencia JSON generada en Drive dentro de la vista `Evidencias`.
+- Se actualizo la version a `2026.06.11-generate-extraction`.
+- Se actualizo el service worker a `reporta-aula-moodle-pages-v20260611-generate-extraction`.
+
+### Verificacion
+
+- `node --check assets/pages-app.js`: correcto.
+- `node --input-type=commonjs --check - < gas/Code.gs`: correcto.
+- `git diff --check`: correcto.
+- Endpoint GAS probado:
+  - `/exec?api=runSample&callback=cb&courseId=1718&spreadsheetId=...`
+  - HTTP 200, `text/javascript`, `ok:true`.
+- Servidor local `http://127.0.0.1:8067/`: HTML sirve `Verificar GAS`, `Generar extraccion` y assets `20260611-generate-extraction`.
+- Asset JS local `assets/pages-app.js?v=20260611-generate-extraction`: HTTP 200 e incluye `runGasExtraction`, `api: "runSample"` y estado `Extraccion generada`.
+- `service-worker.js` local: HTTP 200 con cache `reporta-aula-moodle-pages-v20260611-generate-extraction`.
+- Corrida generada:
+  - `gas-demo-20260611-144837`.
+- Registros devueltos:
+  - 20.
+- Evidencia Drive generada:
+  - `reporta_aula_gas-demo-20260611-144837_20260611-144838.json`.
+  - `https://drive.google.com/file/d/1kcAi-C-KQAfv9g7BiSP2AI5EUCtav51i/view?usp=drivesdk`.
+
+### Estado operativo actualizado
+
+- Boton visible de generacion: implementado.
+- Generacion GAS de muestra con escritura Sheets/Drive: verificada.
+- Extraccion real Moodle con credenciales institucionales: pendiente de reemplazar/implementar sobre el flujo seguro de GAS.
