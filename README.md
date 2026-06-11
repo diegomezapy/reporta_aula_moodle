@@ -18,6 +18,10 @@ Publicacion GitHub Pages con tablero completo:
 
 `https://diegomezapy.github.io/reporta_aula_moodle/`
 
+La barra superior incluye el boton `Hoja en linea` para abrir la Google Sheet operativa vinculada:
+
+`https://docs.google.com/spreadsheets/d/1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8/edit?usp=sharing`
+
 Endpoint de verificacion JSON:
 
 `https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec?api=1`

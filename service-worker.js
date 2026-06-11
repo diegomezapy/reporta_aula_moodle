@@ -1,10 +1,10 @@
-const CACHE_NAME = "reporta-aula-moodle-pages-v20260611";
+const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-sheet-button";
 const APP_SHELL = [
   "./",
   "index.html",
   "manifest.json",
-  "assets/pages-app.css?v=20260611-gas-full",
-  "assets/pages-app.js?v=20260611-gas-full",
+  "assets/pages-app.css?v=20260611-sheet-button",
+  "assets/pages-app.js?v=20260611-sheet-button",
 ];
 
 self.addEventListener("install", (event) => {

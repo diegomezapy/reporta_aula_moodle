@@ -782,6 +782,25 @@ button.secondary:hover {
   background: #dfe8df;
 }
 
+.sheet-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: #eef1eb;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 760;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sheet-button:hover {
+  background: #dfe8df;
+}
+
 .icon-button {
   width: 40px;
   padding: 0;
