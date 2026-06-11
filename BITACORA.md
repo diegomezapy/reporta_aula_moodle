@@ -338,3 +338,99 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 - Mantener un enlace visible a la fuente operativa de registros en todas las vistas administrativas.
 - Para siguientes cambios de GitHub Pages, conservar versionado de assets y verificar la URL publica, no solo el push.
+
+## 2026-06-11 10:55 - Correccion de arquitectura GAS, Sheets y Drive
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Analitica de Big Data.
+- Ruta local: `/tmp/reporta_aula_sheet_button`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Proyecto GAS objetivo: `1_wepzWMyJH-DgdhE3Wsu_Ci0QSikfhEcgWJipJdhXAjyYIfEq5up3hz-`.
+
+### Objetivo de la intervencion
+
+- Corregir la confusion entre backend Python y backend GAS.
+- Cargar contenido real en el proyecto GAS asociado.
+- Preparar escritura real en Google Sheets y evidencia JSON en Google Drive.
+
+### Diagnostico inicial
+
+- La hoja en linea no guardaba datos.
+- El proyecto GAS indicado por el usuario no tenia el contenido operativo esperado en el editor.
+- La app publica mantenia textos como `Backend FastAPI institucional` y `Probar backend`, incompatibles con la arquitectura esperada GitHub Pages -> GAS -> Sheets/Drive.
+- El `.clasp.json` local de la carpeta operativa de Google Drive apuntaba a otro script ID (`1eZF...`) y no al proyecto GAS indicado (`1_wepz...`).
+
+### Acciones realizadas
+
+- Se creo temporalmente `gas/.clasp.json` apuntando al proyecto GAS correcto `1_wepz...` para publicar el codigo.
+- Se empujaron a GAS los archivos `appsscript.json`, `Code.gs` e `Index.html`.
+- Se agrego soporte GAS real para:
+  - `/exec?api=1`.
+  - `/exec?api=report`.
+  - `/exec?api=report&callback=cb`.
+  - JSONP para consumo desde GitHub Pages.
+  - inicializacion de hojas operativas.
+  - escritura de `GAS_RESUMEN`, `GAS_RIESGO`, `GAS_CORRIDA`, `GAS_EVIDENCIAS` y `GAS_AUDITORIA`.
+  - creacion/reutilizacion de carpeta Drive de evidencias.
+  - guardado de evidencia JSON por corrida.
+- Se agrego scope Drive a `gas/appsscript.json`.
+- Se actualizo GitHub Pages para usar el endpoint GAS real v3.
+- Se cambio la vista `Extraccion` a `Conexion GAS`, con boton `Verificar GAS`, enlace a la hoja y enlace al editor GAS.
+- Se actualizo el service worker a `reporta-aula-moodle-pages-v20260611-gas-direct`.
+- Se actualizo README para aclarar que GAS es el backend operativo principal y FastAPI queda como alternativa opcional/local.
+
+### Despliegue GAS realizado
+
+- `clasp push -f`: 3 archivos cargados.
+- Version 1: `Reporta Aula Moodle GAS Sheets Drive 20260611`.
+- Version 2: `Reporta Aula Moodle GAS directo Sheets Drive v2`.
+- Version 3: `Reporta Aula Moodle GAS auto inicializa Sheets Drive 20260611`.
+- Deployment v3:
+  - `AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA @3`.
+  - URL: `https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec`.
+
+### Resultados verificados
+
+- La API de Apps Script confirma que el proyecto `1_wepz...` contiene `appsscript`, `Code` e `Index`.
+- La API de Apps Script confirma deployments con `access: ANYONE_ANONYMOUS` y `executeAs: USER_DEPLOYING`.
+- `node --input-type=commonjs --check - < gas/Code.gs`: correcto.
+- `node --check assets/pages-app.js`: correcto.
+- `git diff --check`: correcto.
+
+### Errores o incidentes
+
+- La URL GAS v3 devuelve `HTTP 403 Acceso denegado` pese a estar desplegada como `ANYONE_ANONYMOUS`.
+- `clasp run initializeReportaAulaWorkbook` devuelve `Unable to run script function. Please make sure you have permission to run the script function.`
+- La sesion local de `clasp` esta autenticada como `monitorimpactosocial@gmail.com`.
+- El token local de `clasp` no incluye scopes de `spreadsheets`, `drive` ni ejecucion `script.scriptapp`; por tanto permite subir codigo, pero no autorizar/ejecutar escritura en Sheets/Drive.
+- El conector Google Drive/Sheets de Codex fallo al iniciar por error de handshake, por lo que no se pudo inicializar la hoja por esa via.
+
+### Estado operativo real
+
+- Codigo GAS: cargado en el proyecto correcto.
+- Deployment GAS: creado.
+- GitHub Pages: preparado para usar el GAS real.
+- Escritura real en la hoja: pendiente de autorizacion.
+- Evidencia real en Drive: pendiente de autorizacion.
+
+### Pendientes criticos
+
+- Reautorizar `clasp` con scopes del proyecto:
+  - `clasp login --use-project-scopes --include-clasp-scopes`.
+- Confirmar que la cuenta ejecutora del deployment tenga acceso de edicion a la hoja:
+  - `1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8`.
+- Ejecutar:
+  - `clasp run initializeReportaAulaWorkbook`.
+- Verificar luego:
+  - `/exec?api=1`.
+  - `/exec?api=report`.
+  - `/exec?api=report&callback=cb`.
+- Confirmar que la hoja tenga filas en `GAS_RESUMEN`, `GAS_RIESGO`, `GAS_CORRIDA`, `GAS_EVIDENCIAS` y `GAS_AUDITORIA`.
+
+### Recomendaciones
+
+- No declarar la app como operativa hasta verificar escritura real en Sheets y archivo de evidencia en Drive.
+- Mantener GAS como backend principal del proyecto y evitar textos de UI que indiquen FastAPI como requisito.

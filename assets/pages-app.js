@@ -1,4 +1,4 @@
-const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec";
+const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.2";
 
 const state = {
@@ -60,7 +60,7 @@ const els = {
   runsTable: $("#runsTable"),
   auditCount: $("#auditCount"),
   auditTable: $("#auditTable"),
-  backendUrl: $("#backendUrl"),
+  gasUrl: $("#gasUrl"),
   runForm: $("#runForm"),
   runButton: $("#runButton"),
   filters: {
@@ -282,6 +282,8 @@ function normalizeReport(report, source) {
   const totalActions = summaries.reduce((sum, row) => sum + row.actions_registered, 0);
   const totalForums = summaries.reduce((sum, row) => sum + row.forum_posts, 0);
   const now = new Date().toISOString();
+  const evidenceFiles = report?.evidence_files || [];
+  const reportFiles = report?.files || [];
   return {
     run_id: report?.runId || report?.run_id || `${source}-demo-${now.slice(0, 10)}`,
     course_title: report?.courseTitle || report?.course_title || "Analitica de Big Data - tablero publico",
@@ -309,16 +311,27 @@ function normalizeReport(report, source) {
       { activity_name: "Mensajes personalizados", action: "sent", count: 8 },
       { activity_name: "Foro novedades", action: "posted", count: 2 },
     ],
-    files: [
-      "reporte_aula_moodle.xlsx",
-      "resumen_estudiantes.csv",
-      "riesgo_desercion.csv",
-      "detalle_participacion.csv",
-    ],
+    files: evidenceFiles.length || reportFiles.length
+      ? [...evidenceFiles, ...reportFiles]
+      : [
+          "reporte_aula_moodle.xlsx",
+          "resumen_estudiantes.csv",
+          "riesgo_desercion.csv",
+          "detalle_participacion.csv",
+        ],
+    spreadsheet_id: report?.spreadsheet_id || report?.spreadsheetId || "1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8",
+    drive_folder_id: report?.drive_folder_id || report?.driveFolderId || "",
+    drive_folder_url: report?.drive_folder_url || report?.driveFolderUrl || "",
   };
 }
 
-function loadGasReport() {
+function gasEndpoint(endpoint, params) {
+  const base = String(endpoint || GAS_REPORT_URL).trim();
+  const query = new URLSearchParams(params);
+  return `${base}${base.includes("?") ? "&" : "?"}${query.toString()}`;
+}
+
+function loadGasReport(endpoint = GAS_REPORT_URL) {
   return new Promise((resolve, reject) => {
     const callbackName = `reportaAulaGas_${Date.now()}_${Math.round(Math.random() * 10000)}`;
     const script = document.createElement("script");
@@ -343,7 +356,7 @@ function loadGasReport() {
       cleanup();
       reject(new Error("No se pudo cargar el endpoint JSONP de GAS"));
     };
-    script.src = `${GAS_REPORT_URL}?api=report&callback=${callbackName}&ts=${Date.now()}`;
+    script.src = gasEndpoint(endpoint, { api: "report", callback: callbackName, ts: Date.now() });
     document.head.appendChild(script);
   });
 }
@@ -657,17 +670,19 @@ function renderAutomation() {
   els.automationState.textContent = "Semanal";
   els.automationDetail.innerHTML = `
     <span>Frecuencia prevista</span><strong>Semanal</strong>
-    <span>Fuente actual</span><strong>${state.source === "gas" ? "GAS publico" : "Datos locales"}</strong>
-    <span>Cuenta futura</span><strong>Institucional</strong>
-    <span>Privacidad</span><strong>Sin datos reales en Pages</strong>
+    <span>Fuente actual</span><strong>${state.source === "gas" ? "GAS directo" : "Datos locales"}</strong>
+    <span>Hoja operativa</span><strong>${escapeHtml(state.report.spreadsheet_id || "Configurada en GAS")}</strong>
+    <span>Drive evidencias</span><strong>${state.report.drive_folder_url ? "Configurado" : "Pendiente"}</strong>
+    <span>Credenciales</span><strong>Solo Script Properties</strong>
   `;
 }
 
 function renderRuns() {
   const runs = [
     { run_id: state.report.run_id, status: "done", message: "Reporte publico cargado" },
-    { run_id: "gas-public-demo", status: state.source === "gas" ? "done" : "fallback", message: state.source === "gas" ? "JSONP GAS disponible" : "Se uso muestra local" },
-    { run_id: "institutional-transfer", status: "pending", message: "Pendiente migracion a cuenta institucional" },
+    { run_id: "gas-webapp", status: state.source === "gas" ? "done" : "fallback", message: state.source === "gas" ? "JSONP GAS disponible" : "Se uso muestra local" },
+    { run_id: "google-sheets", status: "done", message: `Hoja ${state.report.spreadsheet_id || "configurada"}` },
+    { run_id: "google-drive", status: state.report.drive_folder_url ? "done" : "pending", message: state.report.drive_folder_url ? "Carpeta de evidencias configurada" : "Configurar folder id en GAS" },
   ];
   els.runCount.textContent = number(runs.length);
   els.runsTable.replaceChildren();
@@ -684,9 +699,14 @@ function renderRuns() {
   els.fileCount.textContent = number(state.report.files.length);
   els.files.replaceChildren();
   state.report.files.forEach((file) => {
-    const item = document.createElement("span");
-    item.className = "pill muted";
-    item.textContent = file;
+    const item = document.createElement(file.file_url || file.url ? "a" : "span");
+    item.className = "pill muted file-chip";
+    item.textContent = file.file_name || file.archivo || file.name || file;
+    if (file.file_url || file.url) {
+      item.href = file.file_url || file.url;
+      item.target = "_blank";
+      item.rel = "noopener noreferrer";
+    }
     els.files.appendChild(item);
   });
 }
@@ -694,9 +714,9 @@ function renderRuns() {
 function renderAudit() {
   const rows = [
     ["2026-06-11", "GitHub Pages abre la app completa sin portada intermedia"],
-    ["2026-06-11", "GAS publico verificado con endpoint JSONP de reporte"],
-    ["2026-06-11", "Datos de muestra anonimizados, sin credenciales ni correos reales"],
-    ["Pendiente", "Migrar GAS y planilla a cuenta institucional"],
+    ["2026-06-11", "GAS verificado con endpoint JSONP de reporte"],
+    ["2026-06-11", "Hoja en linea enlazada desde el tablero"],
+    ["2026-06-11", "Drive preparado para evidencias JSON desde GAS"],
   ];
   els.auditCount.textContent = number(rows.length);
   els.auditTable.replaceChildren();
@@ -722,22 +742,26 @@ function clearFilters() {
   renderDashboard();
 }
 
-async function testBackend(event) {
+async function testGas(event) {
   event.preventDefault();
-  const base = String(els.backendUrl.value || "").trim().replace(/\/+$/, "");
+  const base = String(els.gasUrl.value || "").trim().replace(/\/+$/, "");
   if (!base) {
-    setStatus("Backend", "Ingrese una URL de backend FastAPI para probarla.");
+    setStatus("GAS", "Ingrese la URL /exec de la Web App de Apps Script.");
     return;
   }
-  localStorage.setItem("reportaAulaBackendUrl", base);
-  setStatus("Probando", "Consultando /api/defaults en el backend informado.");
+  localStorage.setItem("reportaAulaGasUrl", base);
+  setStatus("Verificando", "Consultando Apps Script por JSONP.");
   try {
-    const response = await fetch(`${base}/api/defaults`, { mode: "cors" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    setStatus("Backend OK", data.has_basic_auth ? "Backend disponible y protegido con autenticacion." : "Backend disponible; revisar autenticacion antes de produccion.");
+    const report = await loadGasReport(base);
+    state.report = report;
+    state.source = "gas";
+    els.googleState.textContent = "GAS conectado";
+    els.googleState.className = "pill good";
+    els.authState.textContent = "GAS + Sheets";
+    setStatus("GAS OK", "Apps Script respondio y el tablero fue actualizado.");
+    renderDashboard();
   } catch (error) {
-    setStatus("Backend no disponible", error.message, true);
+    setStatus("GAS no disponible", error.message, true);
   }
 }
 
@@ -754,8 +778,8 @@ async function init() {
     setStatus("Actualizando", "Recargando datos de GAS.");
     await loadAndRender();
   });
-  els.runForm.addEventListener("submit", testBackend);
-  els.backendUrl.value = localStorage.getItem("reportaAulaBackendUrl") || "";
+  els.runForm.addEventListener("submit", testGas);
+  els.gasUrl.value = localStorage.getItem("reportaAulaGasUrl") || GAS_REPORT_URL;
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   }
@@ -764,21 +788,23 @@ async function init() {
 
 async function loadAndRender() {
   try {
-    const report = await loadGasReport();
+    const endpoint = localStorage.getItem("reportaAulaGasUrl") || GAS_REPORT_URL;
+    const report = await loadGasReport(endpoint);
     state.report = report;
     state.source = "gas";
     els.googleState.textContent = "GAS conectado";
     els.googleState.className = "pill good";
-    els.authState.textContent = "Demo publica";
-    setStatus("GAS activo", "Reporte cargado desde Apps Script publico mediante JSONP.");
+    els.authState.textContent = "GAS + Sheets";
+    setStatus("GAS activo", "Reporte cargado desde Apps Script mediante JSONP.");
   } catch (error) {
     state.report = normalizeReport({ summaries: buildLocalRows() }, "local");
     state.source = "local";
-    els.googleState.textContent = "Fallback local";
+    els.googleState.textContent = "Autorizar GAS";
     els.googleState.className = "pill warn";
-    setStatus("Modo local", `No se pudo leer GAS; se usa muestra integrada. ${error.message}`, true);
+    els.authState.textContent = "GAS pendiente";
+    setStatus("GAS pendiente", `No se pudo leer Apps Script; se usa muestra integrada. Revise permisos/autorizacion GAS. ${error.message}`, true);
   }
-  els.sheetTarget.textContent = "Publicacion directa en GitHub Pages; datos reales solo en backend institucional.";
+  els.sheetTarget.textContent = "Publicacion directa GitHub Pages -> GAS -> Sheets/Drive.";
   renderDashboard();
 }
 

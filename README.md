@@ -1,6 +1,6 @@
 # Reporta Aula Moodle
 
-App web para extraer evidencias de participacion y desempeno desde Moodle, generar archivos locales de auditoria y sincronizar resultados con una hoja de Google Sheets.
+App web para extraer evidencias de participacion y desempeno desde Moodle, sincronizar resultados con Google Sheets y guardar evidencias en Google Drive usando Google Apps Script como backend operativo principal.
 
 Hoja objetivo inicial:
 
@@ -10,7 +10,11 @@ Proyecto GAS asociado:
 
 `https://script.google.com/u/0/home/projects/1_wepzWMyJH-DgdhE3Wsu_Ci0QSikfhEcgWJipJdhXAjyYIfEq5up3hz-/edit`
 
-Muestra GAS publica funcional:
+Web App GAS real vinculada a Sheets/Drive:
+
+`https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec`
+
+Muestra GAS publica sin permisos sensibles, conservada solo como respaldo tecnico:
 
 `https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec`
 
@@ -24,11 +28,29 @@ La barra superior incluye el boton `Hoja en linea` para abrir la Google Sheet op
 
 Endpoint de verificacion JSON:
 
-`https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec?api=1`
+`https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec?api=1`
 
 Endpoint JSONP para GitHub Pages:
 
-`https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec?api=report&callback=cb`
+`https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec?api=report&callback=cb`
+
+Estado operativo del 2026-06-11:
+
+- El codigo GAS real fue cargado al proyecto `1_wepzWMyJH-DgdhE3Wsu_Ci0QSikfhEcgWJipJdhXAjyYIfEq5up3hz-`.
+- El deployment real v3 existe: `AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA`.
+- La URL devuelve `403 Acceso denegado` hasta que la cuenta ejecutora autorice los scopes de `spreadsheets`, `drive` y ejecucion de Apps Script, y tenga acceso efectivo a la hoja.
+- La hoja no se considera operativa hasta verificar una escritura real en `GAS_RESUMEN`, `GAS_RIESGO`, `GAS_CORRIDA`, `GAS_EVIDENCIAS` y `GAS_AUDITORIA`.
+- La sesion `clasp` local usada para la carga estaba autenticada como `monitorimpactosocial@gmail.com`; esa cuenta debe tener acceso de edicion a la hoja o el deployment debe recrearse desde una cuenta que lo tenga.
+
+Para desbloquear la escritura real:
+
+```bash
+cd gas
+clasp login --use-project-scopes --include-clasp-scopes
+clasp run initializeReportaAulaWorkbook
+```
+
+Luego abrir `/exec?api=report&callback=cb`. Si responde `ok:true`, la primera lectura inicializa datos de muestra y registra evidencia JSON en Drive.
 
 ## Que Extrae
 
@@ -43,7 +65,7 @@ Endpoint JSONP para GitHub Pages:
 
 ## Tablero
 
-La URL publica de GitHub Pages abre directamente un tablero operativo completo, no una portada intermedia. La app estatica carga una muestra anonima desde GAS por JSONP y usa datos locales integrados si el endpoint de GAS no esta disponible.
+La URL publica de GitHub Pages abre directamente un tablero operativo completo, no una portada intermedia. La app estatica consulta Apps Script por JSONP y usa datos locales integrados si el endpoint de GAS no esta disponible o esta pendiente de autorizacion.
 
 La primera pantalla incluye:
 
@@ -59,13 +81,13 @@ La primera pantalla incluye:
 - Panel individual con ultimo acceso, acciones, foros, evaluaciones, total del curso e indicador de seguimiento.
 - Vista de riesgo de desercion con priorizacion por estudiante, bandas de probabilidad y evidencia bayesiana.
 - Vista de tutoria con acciones, foros, cobertura y actividades con evidencia.
-- Vista de automatizacion para activar corridas periodicas desde la web.
+- Vista de automatizacion para configurar corridas periodicas desde GAS.
 - Vista de auditoria con registro de uso de la app.
 - PWA basica con `manifest.json` y `service-worker.js`.
 
-Los endpoints usados por el tablero devuelven un payload compacto y no incluyen las tablas crudas de Moodle. Los archivos completos quedan disponibles como evidencias de la corrida.
+Los endpoints usados por el tablero devuelven un payload compacto. Las evidencias completas deben quedar en Google Sheets y en archivos JSON dentro de la carpeta Drive configurada en Apps Script.
 
-## Privacidad
+## Privacidad Y Acceso
 
 La aplicacion maneja datos personales de estudiantes. En produccion configura Basic Auth:
 
@@ -74,11 +96,11 @@ APP_USERNAME=admin
 APP_PASSWORD=un-password-largo
 ```
 
-Sin esas variables la app queda abierta, lo cual solo se recomienda en ejecucion local.
+En la arquitectura GAS directa, las credenciales Moodle, tokens compartidos y carpeta Drive deben ir en `Script Properties`, no en GitHub Pages ni en archivos versionados.
 
 Cada acceso queda registrado localmente en `data/access_log.jsonl` con usuario, fecha, ruta, estado HTTP y origen tecnico. No se registran contrasenas.
 
-## Automatizacion
+## Automatizacion GAS
 
 La vista `Automatización` permite:
 
@@ -88,7 +110,7 @@ La vista `Automatización` permite:
 - incluir o excluir la extraccion de participacion del tutor;
 - ejecutar una corrida inmediata usando la configuracion guardada.
 
-La configuracion se guarda en `data/automation_config.json`, archivo ignorado por Git.
+La configuracion productiva debe guardarse en Google Sheets y/o Script Properties. `data/automation_config.json` queda solo para ejecucion local Python.
 
 ## Riesgo De Desercion
 
@@ -103,7 +125,7 @@ Este valor sirve para priorizar seguimiento tutorial. No debe usarse como decisi
 
 En la vista `Riesgo`, el tablero muestra el prior medio, posterior medio, maximo posterior, version del modelo y cantidad de evidencias aplicadas. Tambien presenta una tabla de evidencia por estudiante con prior, posterior y log LR para auditoria docente.
 
-## Ejecucion Local
+## Ejecucion Local Opcional
 
 ```bash
 python3 -m venv .venv
@@ -113,7 +135,7 @@ cp .env.example .env
 uvicorn app.main:app --reload
 ```
 
-Luego abrir `http://127.0.0.1:8000`.
+Luego abrir `http://127.0.0.1:8000`. Esta ruta local no reemplaza GAS; sirve para desarrollo, extraccion reproducible y pruebas con Python.
 
 ## Variables Principales
 
@@ -146,10 +168,10 @@ Pruebas realizadas el 2026-06-11:
 
 Esta muestra calcula KPIs y riesgo bayesiano con datos simulados y anonimizados. No escribe en hojas ni almacena credenciales.
 
-### Integracion real con Google Sheets
+### Integracion Real Con Google Sheets Y Drive
 
 1. Abrir el proyecto GAS vinculado.
-2. Reemplazar o agregar el contenido de `gas/Code.gs`.
+2. Reemplazar o agregar el contenido de `gas/Code.gs`, `gas/Index.html` y `gas/appsscript.json`.
 3. Ejecutar una vez en el editor:
 
 ```javascript
@@ -157,17 +179,25 @@ setReportaAulaSecret('un-token-largo-y-privado')
 initializeReportaAulaWorkbook()
 ```
 
-`initializeReportaAulaWorkbook()` prepara las hojas operativas `CONFIG`, `USUARIOS`, `AUDITORIA` y `ERRORES`.
+`initializeReportaAulaWorkbook()` prepara las hojas operativas `CONFIG`, `USUARIOS`, `AUDITORIA`, `ERRORES`, `GAS_RESUMEN`, `GAS_RIESGO`, `GAS_CORRIDA` y `GAS_EVIDENCIAS`. Tambien prepara o reutiliza la carpeta Drive de evidencias.
 
 4. Desplegar como Web App.
-5. Configurar en `.env`:
+5. Verificar con:
+
+```text
+/exec?api=1
+/exec?api=report
+/exec?api=report&callback=cb
+```
+
+6. Para sincronizacion desde Python local, configurar en `.env`:
 
 ```bash
 GAS_WEBAPP_URL=https://script.google.com/macros/s/XXXXX/exec
 GAS_SHARED_SECRET=un-token-largo-y-privado
 ```
 
-La app enviara las hojas `Corrida`, `Resumen`, `Riesgo desercion`, `Resumen tutor`, `Matriculados`, `Calificaciones`, `Actividades`, `Resumen actividades`, `Detalle participacion`, `Resumen act tutor` y `Detalle tutor`.
+La app GAS real guarda tablas operativas en Sheets y evidencia JSON en Drive. La ruta Python local puede enviar las hojas `Corrida`, `Resumen`, `Riesgo desercion`, `Resumen tutor`, `Matriculados`, `Calificaciones`, `Actividades`, `Resumen actividades`, `Detalle participacion`, `Resumen act tutor` y `Detalle tutor`.
 
 ## Alternativa Con Google Sheets API
 
@@ -201,11 +231,18 @@ Las capturas de verificacion visual local pueden guardarse en `data/ui_checks/`;
 
 ## Despliegue Sugerido
 
-GitHub Pages solo sirve archivos estaticos. Por eso el repositorio incluye una portada publica en `index.html`, pero la extraccion Moodle, las corridas programadas y los endpoints `/api/...` requieren un servidor Python.
+La arquitectura principal es:
 
-La app completa puede desplegarse en Render, Railway, Fly.io, VPS o cualquier servicio que ejecute FastAPI con variables de entorno. En produccion, usar HTTPS y credenciales desde secretos del proveedor.
+- Frontend: GitHub Pages.
+- Backend operativo: Google Apps Script.
+- Base de datos: Google Sheets.
+- Evidencias: Google Drive.
 
-El repositorio incluye `render.yaml` para crear el servicio desde Render Blueprint:
+GitHub Pages solo sirve archivos estaticos. Por eso no debe guardar credenciales ni ejecutar extracciones Moodle por si mismo. Apps Script debe recibir la configuracion segura y escribir en Sheets/Drive.
+
+FastAPI queda como alternativa tecnica opcional para extracciones locales o un servicio persistente si mas adelante se requiere procesamiento Python continuo.
+
+Opcionalmente, el repositorio conserva `render.yaml` para crear un servicio Python desde Render Blueprint si se decide mantener una capa FastAPI de extraccion avanzada:
 
 `https://render.com/deploy?repo=https://github.com/diegomezapy/reporta_aula_moodle`
 
@@ -221,7 +258,7 @@ Comando:
 uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-## Corrida Automatica
+## Corrida Automatica Opcional En Python
 
 Para ejecutar una corrida programada desde el servidor, cargar credenciales Moodle por variables de entorno y activar:
 
@@ -230,7 +267,7 @@ AUTO_RUN_ENABLED=true
 AUTO_RUN_INTERVAL_MINUTES=10080
 ```
 
-`10080` equivale a una corrida semanal. La programacion integrada sirve para despliegues persistentes; en servicios que duermen conviene usar un cron externo que llame `POST /api/runs`.
+`10080` equivale a una corrida semanal. En la arquitectura GAS directa, la periodicidad debe configurarse con triggers de Apps Script; esta configuracion Python solo aplica a un despliegue FastAPI opcional.
 
 ## Documentacion Operativa
 

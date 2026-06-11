@@ -1,16 +1,28 @@
 const DEFAULT_SPREADSHEET_ID = '1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8';
 const SECRET_PROPERTY = 'REPORTA_AULA_SECRET';
+const DRIVE_FOLDER_PROPERTY = 'REPORTA_AULA_DRIVE_FOLDER_ID';
+const DEFAULT_DRIVE_FOLDER_NAME = 'Reporta Aula Moodle Evidencias';
 const SAMPLE_MODEL_VERSION = 'gas_demo_bayes_v0.1';
 
 function doGet(e) {
   const params = (e && e.parameter) || {};
+  if (params.api === 'report') {
+    return jsonOrJsonp_(getLatestGasSample(), params.callback);
+  }
+
+  if (params.api === 'runSample') {
+    return jsonOrJsonp_(runGasSample(params), params.callback);
+  }
+
   if (params.api === '1' || params.format === 'json') {
-    return json_({
+    return jsonOrJsonp_({
       ok: true,
       app: 'Reporta Aula Moodle GAS Demo',
       spreadsheetId: DEFAULT_SPREADSHEET_ID,
+      driveFolderId: getDriveFolderId_(),
+      driveFolderUrl: getDriveFolderUrl_(),
       mode: 'gas-webapp',
-    });
+    }, params.callback);
   }
 
   return HtmlService
@@ -35,10 +47,15 @@ function doPost(e) {
     (payload.sheets || []).forEach((sheetPayload) => {
       writeValues_(ss, sheetPayload.name, sheetPayload.values || []);
     });
+    const evidence = saveEvidenceFile_(payload.run || {}, payload, 'sync_payload');
+    appendEvidence_(ss, payload.run || {}, evidence);
 
     return json_({
       ok: true,
       spreadsheetId,
+      driveFolderId: evidence.folder_id,
+      driveFolderUrl: evidence.folder_url,
+      evidence,
       sheets: (payload.sheets || []).map((item) => item.name),
     });
   } catch (error) {
@@ -54,12 +71,17 @@ function runGasSample(form) {
   const report = buildDemoReport_(courseId, courseTitle);
   const ss = SpreadsheetApp.openById(spreadsheetId);
   setupGasSampleWorkbook_(ss);
-  writeGasSample_(ss, report);
+  const evidence = saveEvidenceFile_(report, { report }, 'gas_sample');
+  writeGasSample_(ss, report, evidence);
+  appendEvidence_(ss, report, evidence);
   appendAudit_(ss, 'runGasSample', 'Muestra funcional GAS ejecutada', startedAt);
   return {
     ok: true,
     report,
     spreadsheetId,
+    driveFolderId: evidence.folder_id,
+    driveFolderUrl: evidence.folder_url,
+    evidence,
     generatedAt: report.generated_at,
     elapsedMs: new Date().getTime() - startedAt.getTime(),
   };
@@ -69,7 +91,11 @@ function getLatestGasSample() {
   const ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
   const sheet = ss.getSheetByName('GAS_RESUMEN');
   if (!sheet || sheet.getLastRow() < 2) {
-    return { ok: false, error: 'Todavia no hay muestra GAS ejecutada.' };
+    return runGasSample({
+      spreadsheetId: DEFAULT_SPREADSHEET_ID,
+      courseId: 1718,
+      courseTitle: 'Analitica de Big Data - Muestra GAS inicial',
+    });
   }
   const values = sheet.getDataRange().getValues();
   const headers = values.shift();
@@ -81,6 +107,10 @@ function getLatestGasSample() {
       generated_at: new Date().toISOString(),
       summaries: rows,
       kpis: buildKpis_(rows),
+      spreadsheet_id: DEFAULT_SPREADSHEET_ID,
+      drive_folder_id: getDriveFolderId_(),
+      drive_folder_url: getDriveFolderUrl_(),
+      evidence_files: latestEvidence_(ss),
     },
   };
 }
@@ -95,6 +125,11 @@ function setReportaAulaSecret(secret) {
   PropertiesService.getScriptProperties().setProperty(SECRET_PROPERTY, secret);
 }
 
+function setReportaAulaDriveFolderId(folderId) {
+  PropertiesService.getScriptProperties().setProperty(DRIVE_FOLDER_PROPERTY, folderId);
+  return { ok: true, driveFolderId: folderId, driveFolderUrl: getDriveFolderUrl_() };
+}
+
 function initializeReportaAulaWorkbook() {
   const ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
   ensureSheetWithHeaders_(ss, 'CONFIG', ['clave', 'valor', 'actualizado_en']);
@@ -102,7 +137,13 @@ function initializeReportaAulaWorkbook() {
   ensureSheetWithHeaders_(ss, 'AUDITORIA', ['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
   ensureSheetWithHeaders_(ss, 'ERRORES', ['timestamp', 'usuario', 'accion', 'error', 'detalle']);
   setupGasSampleWorkbook_(ss);
-  return json_({ ok: true, initialized: ['CONFIG', 'USUARIOS', 'AUDITORIA', 'ERRORES', 'GAS_RESUMEN', 'GAS_RIESGO'] });
+  return json_({
+    ok: true,
+    initialized: ['CONFIG', 'USUARIOS', 'AUDITORIA', 'ERRORES', 'GAS_RESUMEN', 'GAS_RIESGO', 'GAS_EVIDENCIAS'],
+    spreadsheetId: DEFAULT_SPREADSHEET_ID,
+    driveFolderId: getDriveFolderId_(),
+    driveFolderUrl: getDriveFolderUrl_(),
+  });
 }
 
 function setupGasSampleWorkbook_(ss) {
@@ -125,6 +166,7 @@ function setupGasSampleWorkbook_(ss) {
   ]);
   ensureSheetWithHeaders_(ss, 'GAS_RIESGO', ['nivel', 'cantidad']);
   ensureSheetWithHeaders_(ss, 'GAS_AUDITORIA', ['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
+  ensureSheetWithHeaders_(ss, 'GAS_EVIDENCIAS', ['timestamp', 'run_id', 'tipo', 'archivo', 'url', 'folder_id', 'folder_url']);
 }
 
 function buildDemoReport_(courseId, courseTitle) {
@@ -253,7 +295,7 @@ function buildKpis_(summaries) {
   };
 }
 
-function writeGasSample_(ss, report) {
+function writeGasSample_(ss, report, evidence) {
   const summaryHeaders = [
     'user_id',
     'name',
@@ -282,6 +324,10 @@ function writeGasSample_(ss, report) {
     ['course_id', report.course_id],
     ['course_title', report.course_title],
     ['model_version', report.model_version],
+    ['spreadsheet_id', DEFAULT_SPREADSHEET_ID],
+    ['drive_folder_id', evidence && evidence.folder_id ? evidence.folder_id : ''],
+    ['drive_folder_url', evidence && evidence.folder_url ? evidence.folder_url : ''],
+    ['evidence_file', evidence && evidence.file_url ? evidence.file_url : ''],
   ]);
 }
 
@@ -323,6 +369,68 @@ function appendAudit_(ss, action, detail, startedAt) {
     sheet.appendRow(['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
   }
   sheet.appendRow([startedAt || new Date(), user, action, detail, 'gas-webapp']);
+}
+
+function appendEvidence_(ss, run, evidence) {
+  if (!evidence) return;
+  const sheet = ss.getSheetByName('GAS_EVIDENCIAS') || ss.insertSheet('GAS_EVIDENCIAS');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['timestamp', 'run_id', 'tipo', 'archivo', 'url', 'folder_id', 'folder_url']);
+  }
+  sheet.appendRow([
+    new Date(),
+    run.run_id || run.runId || '',
+    evidence.type || '',
+    evidence.file_name || '',
+    evidence.file_url || '',
+    evidence.folder_id || '',
+    evidence.folder_url || '',
+  ]);
+}
+
+function latestEvidence_(ss) {
+  const sheet = ss.getSheetByName('GAS_EVIDENCIAS');
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const row = sheet.getRange(sheet.getLastRow(), 1, 1, sheet.getLastColumn()).getValues()[0];
+  return [objectFromRow_(headers, row)];
+}
+
+function saveEvidenceFile_(run, payload, type) {
+  const folder = getEvidenceFolder_();
+  const runId = run.run_id || run.runId || 'gas-run';
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
+  const safeRunId = String(runId).replace(/[^A-Za-z0-9_-]+/g, '_').substring(0, 80);
+  const fileName = 'reporta_aula_' + safeRunId + '_' + stamp + '.json';
+  const file = folder.createFile(fileName, JSON.stringify(payload, null, 2), 'application/json');
+  return {
+    type: type || 'json',
+    file_id: file.getId(),
+    file_name: fileName,
+    file_url: file.getUrl(),
+    folder_id: folder.getId(),
+    folder_url: folder.getUrl(),
+  };
+}
+
+function getEvidenceFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const configuredId = props.getProperty(DRIVE_FOLDER_PROPERTY);
+  if (configuredId) {
+    return DriveApp.getFolderById(configuredId);
+  }
+  const folders = DriveApp.getFoldersByName(DEFAULT_DRIVE_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(DEFAULT_DRIVE_FOLDER_NAME);
+  props.setProperty(DRIVE_FOLDER_PROPERTY, folder.getId());
+  return folder;
+}
+
+function getDriveFolderId_() {
+  return getEvidenceFolder_().getId();
+}
+
+function getDriveFolderUrl_() {
+  return getEvidenceFolder_().getUrl();
 }
 
 function validateSecret_(secret) {
@@ -379,4 +487,17 @@ function json_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonp_(callback, payload) {
+  const safeCallback = /^[A-Za-z_$][0-9A-Za-z_$.]*$/.test(String(callback || ''))
+    ? String(callback)
+    : 'reportaAulaCallback';
+  return ContentService
+    .createTextOutput(safeCallback + '(' + JSON.stringify(payload) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function jsonOrJsonp_(payload, callback) {
+  return callback ? jsonp_(callback, payload) : json_(payload);
 }

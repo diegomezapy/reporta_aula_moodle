@@ -6,14 +6,14 @@
     <meta name="theme-color" content="#246f5c" />
     <title>Reporta Aula Moodle</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-sheet-button" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-gas-direct" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div>
           <h1>Reporta Aula Moodle</h1>
-          <p id="sheetTarget">GitHub Pages + GAS publico, listo para migrar a cuenta institucional.</p>
+          <p id="sheetTarget">GitHub Pages conectado directamente con GAS, Google Sheets y Drive.</p>
         </div>
         <div class="top-actions">
           <span id="authState" class="pill muted">Demo anonima</span>
@@ -102,7 +102,7 @@
           <section class="status-card">
             <div>
               <span id="currentStatus" class="pill muted">Cargando</span>
-              <p id="statusMessage">Conectando la publicacion GitHub Pages con la muestra GAS.</p>
+              <p id="statusMessage">Conectando GitHub Pages con Apps Script.</p>
             </div>
           </section>
         </section>
@@ -262,8 +262,8 @@
             <div class="timeline-list">
               <div><strong>1</strong><span>Extraer participacion Moodle semanalmente.</span></div>
               <div><strong>2</strong><span>Calcular indicadores y riesgo bayesiano trazable.</span></div>
-              <div><strong>3</strong><span>Sincronizar resumen con Google Sheets institucional.</span></div>
-              <div><strong>4</strong><span>Generar reportes personalizados solo para estudiantes afectados.</span></div>
+              <div><strong>3</strong><span>Guardar resumen y auditoria en Google Sheets.</span></div>
+              <div><strong>4</strong><span>Guardar evidencias JSON en la carpeta Drive configurada.</span></div>
             </div>
           </article>
         </section>
@@ -273,12 +273,12 @@
         <section class="extract-grid">
           <form id="runForm" class="panel">
             <div class="panel-head">
-              <h2>Extraccion Moodle</h2>
-              <span class="pill muted">Modo seguro</span>
+              <h2>Conexion GAS</h2>
+              <span class="pill muted">Sheets + Drive</span>
             </div>
             <label>
-              Backend FastAPI institucional
-              <input id="backendUrl" name="backend_url" type="url" placeholder="https://reporta-aula-moodle.onrender.com" />
+              Apps Script Web App
+              <input id="gasUrl" name="gas_url" type="url" placeholder="https://script.google.com/macros/s/XXXXX/exec" />
             </label>
             <label>
               Aula Moodle
@@ -290,16 +290,18 @@
                 <input name="course_id" type="number" min="1" value="1718" />
               </label>
               <label>
-                Usuario
-                <input name="username" autocomplete="username" placeholder="se carga solo en backend seguro" />
+                Hoja de registros
+                <input name="spreadsheet_id" value="1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8" readonly />
               </label>
             </div>
             <label>
               Nota
-              <textarea name="notes" rows="3">La publicacion GitHub Pages no almacena credenciales. La extraccion real queda para FastAPI/GAS institucional.</textarea>
+              <textarea name="notes" rows="3">La publicacion GitHub Pages no almacena credenciales. Apps Script usa Script Properties, escribe en Google Sheets y guarda evidencias en Drive.</textarea>
             </label>
             <div class="form-row">
-              <button id="runButton" type="submit">Probar backend</button>
+              <button id="runButton" type="submit">Verificar GAS</button>
+              <a class="buttonlike secondary" href="https://docs.google.com/spreadsheets/d/1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8/edit?usp=sharing" target="_blank" rel="noopener noreferrer">Abrir hoja</a>
+              <a class="buttonlike secondary" href="https://script.google.com/u/0/home/projects/1_wepzWMyJH-DgdhE3Wsu_Ci0QSikfhEcgWJipJdhXAjyYIfEq5up3hz-/edit" target="_blank" rel="noopener noreferrer">Abrir GAS</a>
               <a class="buttonlike secondary" href="https://github.com/diegomezapy/reporta_aula_moodle">Repositorio</a>
             </div>
           </form>
@@ -334,6 +336,6 @@
         </section>
       </section>
     </main>
-    <script src="assets/pages-app.js?v=20260611-sheet-button"></script>
+    <script src="assets/pages-app.js?v=20260611-gas-direct"></script>
   </body>
 </html>
