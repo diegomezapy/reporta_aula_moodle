@@ -1128,6 +1128,14 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - Service worker local contiene cache `reporta-aula-moodle-pages-v20260611-institutional-ui`.
 - Captura local escritorio generada: `data/ui_checks/facen_ui_desktop.png`.
 - Capturas locales movil generadas y usadas para corregir acciones superiores y pestanas.
+- Commit funcional publicado: `8fcefcc feat: aplicar identidad visual facen`.
+- Ramas remotas actualizadas: `origin/diego` y `origin/main`.
+- GitHub Pages verificado en `https://diegomezapy.github.io/reporta_aula_moodle/`:
+  - HTML publico sirve assets `20260611-institutional-ui`;
+  - HTML publico contiene `FACEN - UNA`, `brand-flower` y `ops-strip`;
+  - CSS publico contiene `--gold: #ffff00`, `#231f20`, `#727376`, `brand-flower` y `ops-strip`;
+  - JS publico contiene `APP_VERSION = "2026.06.11-institutional-ui"`;
+  - Service worker publico contiene cache `reporta-aula-moodle-pages-v20260611-institutional-ui`.
 
 ### Errores o incidentes
 
@@ -1144,9 +1152,8 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 ### Pendientes
 
-- Commit y push a `origin/diego` y `origin/main`.
-- Verificar GitHub Pages publico con cache-busting.
 - Validar visualmente en navegador real con datos Moodle reales.
+- Reemplazar la marca compacta CSS por logo oficial SVG/PNG si FACEN entrega el archivo institucional aprobado.
 
 ### Riesgos
 
