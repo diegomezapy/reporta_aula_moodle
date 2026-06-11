@@ -37,13 +37,22 @@ El riesgo se calcula en `app/bayesian.py` y `app/reporting.py` mediante una prim
 odds posterior = odds prior * producto de razones de verosimilitud
 ```
 
-Si existe una corrida previa completada del mismo curso, el posterior anterior de cada estudiante se usa como prior de la nueva semana. Si no hay historial, se usa un prior conservador inicial. Los factores quedan en `bayesian_evidence_factors` y `desertion_risk_factors` para que el docente pueda revisar por que se priorizo a cada estudiante.
+El modelo tiene dos modalidades:
+
+- `semester_*`: desercion durante el semestre, usando evidencia Moodle semanal, carga actual y acompanamiento tutorial.
+- `career_*`: desercion en la carrera, usando trayectoria academica, avance, materias previas, estado de matricula, carga, beca, acompanamiento tutorial y senal del semestre.
+
+Si existe una corrida previa completada del mismo curso, el posterior anterior de cada estudiante se usa como prior de la nueva semana para la modalidad semestre. Si no hay historial, se usa un prior conservador inicial. Los campos historicos `bayesian_*` y `desertion_*` se conservan como alias de `semester_*`.
+
+Los factores quedan en `semester_desertion_risk_factors`, `career_desertion_risk_factors`, `bayesian_evidence_factors` y `desertion_risk_factors` para que el docente pueda revisar por que se priorizo a cada estudiante.
 
 La probabilidad es una senal de seguimiento tutorial, no una decision automatica.
 
 ## Tablero Y Verificacion Visual
 
 El frontend vive en `app/static/`. El tablero consume el payload compacto de `/api/reports/latest/dashboard` y recalcula KPIs, graficos y tablas desde los filtros globales del navegador.
+
+La publicacion GitHub Pages vive en `index.html`, `assets/pages-app.js`, `assets/pages-app.css`, `manifest.json` y `service-worker.js`. Esa version consume GAS por JSONP y usa el mismo contrato de campos `semester_*`, `career_*`, identificadores de estudiantes y variables de tutores/profesores.
 
 Componentes principales:
 
@@ -64,4 +73,3 @@ python -m compileall app tests
 python -m pytest
 node --check app/static/app.js
 ```
-

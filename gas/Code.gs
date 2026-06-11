@@ -2,7 +2,7 @@ const DEFAULT_SPREADSHEET_ID = '1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8';
 const SECRET_PROPERTY = 'REPORTA_AULA_SECRET';
 const DRIVE_FOLDER_PROPERTY = 'REPORTA_AULA_DRIVE_FOLDER_ID';
 const DEFAULT_DRIVE_FOLDER_NAME = 'Reporta Aula Moodle Evidencias';
-const SAMPLE_MODEL_VERSION = 'gas_demo_bayes_v0.1';
+const SAMPLE_MODEL_VERSION = 'gas_demo_bayes_v0.2_dual_desertion';
 
 function doGet(e) {
   const params = (e && e.parameter) || {};
@@ -149,13 +149,48 @@ function initializeReportaAulaWorkbook() {
 function setupGasSampleWorkbook_(ss) {
   ensureSheetWithHeaders_(ss, 'GAS_RESUMEN', [
     'user_id',
+    'student_moodle_id',
+    'student_document_id',
     'name',
     'email',
+    'cohort',
+    'career',
+    'semester_number',
+    'enrollment_status',
+    'academic_load',
+    'failed_previous_subjects',
+    'program_progress_percent',
+    'scholarship_status',
+    'work_shift',
+    'tutor_id',
+    'tutor_name',
+    'tutor_email',
+    'tutor_role',
+    'tutor_actions_registered',
+    'tutor_forum_replies',
+    'tutor_feedback_count',
+    'tutor_response_hours',
+    'tutor_activity_coverage',
+    'tutor_followup_signal',
     'actions_registered',
     'forum_posts',
     'grade_cells_with_value',
+    'days_since_last_access',
+    'last_access_text',
     'platform_level',
     'evaluative_level',
+    'semester_bayesian_prior_probability',
+    'semester_bayesian_posterior_probability',
+    'semester_bayesian_log_likelihood_ratio',
+    'semester_desertion_probability',
+    'semester_desertion_risk_level',
+    'semester_desertion_risk_factors',
+    'career_bayesian_prior_probability',
+    'career_bayesian_posterior_probability',
+    'career_bayesian_log_likelihood_ratio',
+    'career_desertion_probability',
+    'career_desertion_risk_level',
+    'career_desertion_risk_factors',
     'bayesian_prior_probability',
     'bayesian_posterior_probability',
     'bayesian_log_likelihood_ratio',
@@ -164,36 +199,37 @@ function setupGasSampleWorkbook_(ss) {
     'desertion_risk_factors',
     'follow_up_alert',
   ]);
-  ensureSheetWithHeaders_(ss, 'GAS_RIESGO', ['nivel', 'cantidad']);
+  ensureSheetWithHeaders_(ss, 'GAS_RIESGO', ['modalidad', 'nivel', 'cantidad']);
   ensureSheetWithHeaders_(ss, 'GAS_AUDITORIA', ['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
   ensureSheetWithHeaders_(ss, 'GAS_EVIDENCIAS', ['timestamp', 'run_id', 'tipo', 'archivo', 'url', 'folder_id', 'folder_url']);
 }
 
 function buildDemoReport_(courseId, courseTitle) {
   const base = [
-    ['demo-01', 'Estudiante 01', 'estudiante01@example.invalid', 6, 1, 1, 3],
-    ['demo-02', 'Estudiante 02', 'estudiante02@example.invalid', 11, 3, 3, 7],
-    ['demo-03', 'Estudiante 03', 'estudiante03@example.invalid', 5, 2, 1, 32],
-    ['demo-04', 'Estudiante 04', 'estudiante04@example.invalid', 0, 0, 0, 72],
-    ['demo-05', 'Estudiante 05', 'estudiante05@example.invalid', 6, 1, 1, 49],
-    ['demo-06', 'Estudiante 06', 'estudiante06@example.invalid', 2, 0, 0, 82],
-    ['demo-07', 'Estudiante 07', 'estudiante07@example.invalid', 17, 3, 3, 3],
-    ['demo-08', 'Estudiante 08', 'estudiante08@example.invalid', 6, 0, 0, 66],
-    ['demo-09', 'Estudiante 09', 'estudiante09@example.invalid', 20, 2, 2, 7],
-    ['demo-10', 'Estudiante 10', 'estudiante10@example.invalid', 10, 2, 0, 1],
-    ['demo-11', 'Estudiante 11', 'estudiante11@example.invalid', 1, 0, 0, 64],
-    ['demo-12', 'Estudiante 12', 'estudiante12@example.invalid', 2, 0, 0, 57],
-    ['demo-13', 'Estudiante 13', 'estudiante13@example.invalid', 15, 1, 1, 15],
-    ['demo-14', 'Estudiante 14', 'estudiante14@example.invalid', 18, 3, 3, 0],
-    ['demo-15', 'Estudiante 15', 'estudiante15@example.invalid', 23, 5, 3, 2],
-    ['demo-16', 'Estudiante 16', 'estudiante16@example.invalid', 13, 2, 2, 50],
-    ['demo-17', 'Estudiante 17', 'estudiante17@example.invalid', 10, 0, 0, 68],
-    ['demo-18', 'Estudiante 18', 'estudiante18@example.invalid', 7, 1, 1, 67],
-    ['demo-19', 'Estudiante 19', 'estudiante19@example.invalid', 16, 3, 1, 3],
-    ['demo-20', 'Estudiante 20', 'estudiante20@example.invalid', 0, 0, 0, 88],
+    demoStudent_('demo-01', 'Estudiante 01', 6, 1, 1, 3, 1, 0, 18, 12, 4, 1.0, 'Alta'),
+    demoStudent_('demo-02', 'Estudiante 02', 11, 3, 3, 7, 2, 0, 32, 9, 5, 0.88, 'Alta'),
+    demoStudent_('demo-03', 'Estudiante 03', 5, 2, 1, 32, 3, 1, 38, 5, 2, 0.63, 'Media'),
+    demoStudent_('demo-04', 'Estudiante 04', 0, 0, 0, 72, 5, 4, 36, 1, 0, 0.22, 'Bajo'),
+    demoStudent_('demo-05', 'Estudiante 05', 6, 1, 1, 49, 4, 2, 42, 3, 1, 0.43, 'Media'),
+    demoStudent_('demo-06', 'Estudiante 06', 2, 0, 0, 82, 6, 5, 44, 1, 0, 0.18, 'Bajo'),
+    demoStudent_('demo-07', 'Estudiante 07', 17, 3, 3, 3, 2, 0, 36, 10, 5, 0.92, 'Alta'),
+    demoStudent_('demo-08', 'Estudiante 08', 6, 0, 0, 66, 5, 3, 47, 2, 0, 0.34, 'Bajo'),
+    demoStudent_('demo-09', 'Estudiante 09', 20, 2, 2, 7, 3, 0, 54, 8, 4, 0.76, 'Alta'),
+    demoStudent_('demo-10', 'Estudiante 10', 10, 2, 0, 1, 1, 1, 16, 6, 2, 0.58, 'Media'),
+    demoStudent_('demo-11', 'Estudiante 11', 1, 0, 0, 64, 7, 4, 52, 1, 0, 0.25, 'Bajo'),
+    demoStudent_('demo-12', 'Estudiante 12', 2, 0, 0, 57, 4, 2, 31, 2, 0, 0.3, 'Bajo'),
+    demoStudent_('demo-13', 'Estudiante 13', 15, 1, 1, 15, 2, 0, 40, 7, 3, 0.78, 'Alta'),
+    demoStudent_('demo-14', 'Estudiante 14', 18, 3, 3, 0, 1, 0, 20, 12, 6, 1.0, 'Alta'),
+    demoStudent_('demo-15', 'Estudiante 15', 23, 5, 3, 2, 3, 0, 58, 13, 6, 0.94, 'Alta'),
+    demoStudent_('demo-16', 'Estudiante 16', 13, 2, 2, 50, 6, 2, 62, 4, 2, 0.52, 'Media'),
+    demoStudent_('demo-17', 'Estudiante 17', 10, 0, 0, 68, 7, 5, 48, 2, 0, 0.27, 'Bajo'),
+    demoStudent_('demo-18', 'Estudiante 18', 7, 1, 1, 67, 5, 3, 45, 3, 1, 0.38, 'Media'),
+    demoStudent_('demo-19', 'Estudiante 19', 16, 3, 1, 3, 2, 0, 34, 8, 4, 0.84, 'Alta'),
+    demoStudent_('demo-20', 'Estudiante 20', 0, 0, 0, 88, 8, 6, 51, 0, 0, 0.14, 'Bajo'),
   ];
 
   const summaries = base.map((item) => buildStudentSummary_(item));
+  const tutorProfiles = buildTutorProfiles_(summaries);
   return {
     run_id: 'gas-demo-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss'),
     generated_at: new Date().toISOString(),
@@ -201,110 +237,151 @@ function buildDemoReport_(courseId, courseTitle) {
     course_title: courseTitle,
     model_version: SAMPLE_MODEL_VERSION,
     summaries,
+    tutor_profiles: tutorProfiles,
+    tutor_summary: buildTutorSummary_(summaries, tutorProfiles),
+    tutor_activity_summary: buildTutorActivitySummary_(summaries),
     kpis: buildKpis_(summaries),
   };
 }
 
 function buildStudentSummary_(item) {
-  const actions = Number(item[3]);
-  const forums = Number(item[4]);
-  const grades = Number(item[5]);
-  const days = Number(item[6]);
-  const prior = 0.2;
-  const evidence = [];
-  const lr = [];
-
-  if (days >= 45) {
-    evidence.push('Ultimo acceso mayor o igual a 45 dias');
-    lr.push(2.2);
-  } else if (days <= 7) {
-    evidence.push('Acceso reciente al aula');
-    lr.push(0.55);
-  }
-
-  if (actions === 0) {
-    evidence.push('Sin actividad en plataforma');
-    lr.push(2.8);
-  } else if (actions < 5) {
-    evidence.push('Baja actividad en plataforma');
-    lr.push(1.7);
-  } else if (actions >= 15) {
-    evidence.push('Alta actividad en plataforma');
-    lr.push(0.55);
-  }
-
-  if (grades === 0) {
-    evidence.push('Sin evaluaciones registradas');
-    lr.push(2.4);
-  } else if (grades >= 3) {
-    evidence.push('Evaluaciones registradas');
-    lr.push(0.55);
-  }
-
-  if (forums === 0) {
-    evidence.push('Sin participacion registrada en foros');
-    lr.push(1.35);
-  } else if (forums >= 3) {
-    evidence.push('Participacion frecuente en foros');
-    lr.push(0.65);
-  }
-
-  const priorOdds = prior / (1 - prior);
-  const likelihood = lr.reduce((acc, value) => acc * value, 1);
-  const posteriorOdds = priorOdds * likelihood;
-  const posterior = posteriorOdds / (1 + posteriorOdds);
-  const logLr = Math.log(likelihood || 1);
+  const actions = Number(item.actions_registered || 0);
+  const forums = Number(item.forum_posts || 0);
+  const grades = Number(item.grade_cells_with_value || 0);
+  const days = Number(item.days_since_last_access || 0);
+  const semesterRisk = estimateSemesterRisk_(item);
+  const careerRisk = estimateCareerRisk_(item, semesterRisk.posterior_probability);
 
   return {
-    user_id: item[0],
-    name: item[1],
-    email: item[2],
+    user_id: item.user_id,
+    student_moodle_id: item.student_moodle_id,
+    student_document_id: item.student_document_id,
+    name: item.name,
+    email: item.email,
+    cohort: item.cohort,
+    career: item.career,
+    semester_number: item.semester_number,
+    enrollment_status: item.enrollment_status,
+    academic_load: item.academic_load,
+    failed_previous_subjects: item.failed_previous_subjects,
+    program_progress_percent: item.program_progress_percent,
+    scholarship_status: item.scholarship_status,
+    work_shift: item.work_shift,
+    tutor_id: item.tutor_id,
+    tutor_name: item.tutor_name,
+    tutor_email: item.tutor_email,
+    tutor_role: item.tutor_role,
+    tutor_actions_registered: item.tutor_actions_registered,
+    tutor_forum_replies: item.tutor_forum_replies,
+    tutor_feedback_count: item.tutor_feedback_count,
+    tutor_response_hours: item.tutor_response_hours,
+    tutor_activity_coverage: item.tutor_activity_coverage,
+    tutor_followup_signal: item.tutor_followup_signal,
     actions_registered: actions,
     forum_posts: forums,
     grade_cells_with_value: grades,
+    days_since_last_access: days,
+    last_access_text: days <= 1 ? 'Ultimo dia' : days + ' dias',
     platform_level: platformLevel_(actions),
     evaluative_level: evaluativeLevel_(grades),
-    bayesian_prior_probability: round_(prior),
-    bayesian_posterior_probability: round_(posterior),
-    bayesian_log_likelihood_ratio: round_(logLr),
+    semester_bayesian_prior_probability: semesterRisk.prior_probability,
+    semester_bayesian_posterior_probability: semesterRisk.posterior_probability,
+    semester_bayesian_log_likelihood_ratio: semesterRisk.log_likelihood_ratio,
+    semester_desertion_probability: semesterRisk.posterior_probability,
+    semester_desertion_risk_level: riskLevel_(semesterRisk.posterior_probability),
+    semester_desertion_risk_factors: semesterRisk.evidence_factors.join('; '),
+    career_bayesian_prior_probability: careerRisk.prior_probability,
+    career_bayesian_posterior_probability: careerRisk.posterior_probability,
+    career_bayesian_log_likelihood_ratio: careerRisk.log_likelihood_ratio,
+    career_desertion_probability: careerRisk.posterior_probability,
+    career_desertion_risk_level: riskLevel_(careerRisk.posterior_probability),
+    career_desertion_risk_factors: careerRisk.evidence_factors.join('; '),
+    bayesian_prior_probability: semesterRisk.prior_probability,
+    bayesian_posterior_probability: semesterRisk.posterior_probability,
+    bayesian_log_likelihood_ratio: semesterRisk.log_likelihood_ratio,
     risk_model_version: SAMPLE_MODEL_VERSION,
-    desertion_risk_level: riskLevel_(posterior),
-    desertion_risk_factors: evidence.join('; '),
-    follow_up_alert: posterior >= 0.5,
+    desertion_risk_level: riskLevel_(semesterRisk.posterior_probability),
+    desertion_risk_factors: semesterRisk.evidence_factors.join('; '),
+    follow_up_alert: semesterRisk.posterior_probability >= 0.5 || careerRisk.posterior_probability >= 0.5,
   };
 }
 
 function buildKpis_(summaries) {
   const total = summaries.length;
   const alerts = summaries.filter((row) => row.follow_up_alert === true || row.follow_up_alert === 'TRUE').length;
-  const avgRisk = total ? summaries.reduce((sum, row) => sum + Number(row.bayesian_posterior_probability || 0), 0) / total : 0;
+  const avgSemesterRisk = total ? summaries.reduce((sum, row) => sum + Number(row.semester_desertion_probability || row.desertion_probability || 0), 0) / total : 0;
+  const avgCareerRisk = total ? summaries.reduce((sum, row) => sum + Number(row.career_desertion_probability || 0), 0) / total : 0;
   const actions = summaries.reduce((sum, row) => sum + Number(row.actions_registered || 0), 0);
   const forums = summaries.reduce((sum, row) => sum + Number(row.forum_posts || 0), 0);
-  const risk = summaries.reduce((acc, row) => {
-    const level = row.desertion_risk_level || 'Sin dato';
+  const semesterRisk = summaries.reduce((acc, row) => {
+    const level = row.semester_desertion_risk_level || row.desertion_risk_level || 'Sin dato';
+    acc[level] = (acc[level] || 0) + 1;
+    return acc;
+  }, {});
+  const careerRisk = summaries.reduce((acc, row) => {
+    const level = row.career_desertion_risk_level || 'Sin dato';
     acc[level] = (acc[level] || 0) + 1;
     return acc;
   }, {});
   return {
     total_students: total,
     alerts,
-    average_risk: round_(avgRisk),
+    average_risk: round_(avgSemesterRisk),
+    average_semester_risk: round_(avgSemesterRisk),
+    average_career_risk: round_(avgCareerRisk),
     actions,
     forums,
-    risk,
+    risk: semesterRisk,
+    semester_risk: semesterRisk,
+    career_risk: careerRisk,
   };
 }
 
 function writeGasSample_(ss, report, evidence) {
   const summaryHeaders = [
     'user_id',
+    'student_moodle_id',
+    'student_document_id',
     'name',
     'email',
+    'cohort',
+    'career',
+    'semester_number',
+    'enrollment_status',
+    'academic_load',
+    'failed_previous_subjects',
+    'program_progress_percent',
+    'scholarship_status',
+    'work_shift',
+    'tutor_id',
+    'tutor_name',
+    'tutor_email',
+    'tutor_role',
+    'tutor_actions_registered',
+    'tutor_forum_replies',
+    'tutor_feedback_count',
+    'tutor_response_hours',
+    'tutor_activity_coverage',
+    'tutor_followup_signal',
     'actions_registered',
     'forum_posts',
     'grade_cells_with_value',
+    'days_since_last_access',
+    'last_access_text',
     'platform_level',
     'evaluative_level',
+    'semester_bayesian_prior_probability',
+    'semester_bayesian_posterior_probability',
+    'semester_bayesian_log_likelihood_ratio',
+    'semester_desertion_probability',
+    'semester_desertion_risk_level',
+    'semester_desertion_risk_factors',
+    'career_bayesian_prior_probability',
+    'career_bayesian_posterior_probability',
+    'career_bayesian_log_likelihood_ratio',
+    'career_desertion_probability',
+    'career_desertion_risk_level',
+    'career_desertion_risk_factors',
     'bayesian_prior_probability',
     'bayesian_posterior_probability',
     'bayesian_log_likelihood_ratio',
@@ -315,7 +392,9 @@ function writeGasSample_(ss, report, evidence) {
   ];
   const summaryValues = [summaryHeaders].concat(report.summaries.map((row) => summaryHeaders.map((key) => row[key])));
   writeValues_(ss, 'GAS_RESUMEN', summaryValues);
-  const riskValues = [['nivel', 'cantidad']].concat(Object.keys(report.kpis.risk).map((key) => [key, report.kpis.risk[key]]));
+  const riskValues = [['modalidad', 'nivel', 'cantidad']]
+    .concat(Object.keys(report.kpis.semester_risk).map((key) => ['semestre', key, report.kpis.semester_risk[key]]))
+    .concat(Object.keys(report.kpis.career_risk).map((key) => ['carrera', key, report.kpis.career_risk[key]]));
   writeValues_(ss, 'GAS_RIESGO', riskValues);
   writeValues_(ss, 'GAS_CORRIDA', [
     ['Campo', 'Valor'],
@@ -329,6 +408,183 @@ function writeGasSample_(ss, report, evidence) {
     ['drive_folder_url', evidence && evidence.folder_url ? evidence.folder_url : ''],
     ['evidence_file', evidence && evidence.file_url ? evidence.file_url : ''],
   ]);
+}
+
+function demoStudent_(id, name, actions, forums, grades, days, semester, failed, progress, tutorActions, tutorFeedback, coverage, followupSignal) {
+  const index = Number(String(id).replace(/\D/g, '')) || 1;
+  const tutorIndex = ((index - 1) % 3) + 1;
+  return {
+    user_id: id,
+    student_moodle_id: 'MOODLE-STU-' + pad2_(index),
+    student_document_id: 'DOC-DEMO-' + pad2_(index),
+    name,
+    email: 'estudiante' + pad2_(index) + '@example.invalid',
+    cohort: semester <= 2 ? '2026' : semester <= 5 ? '2025' : '2024',
+    career: index % 2 === 0 ? 'Licenciatura en Ciencia de Datos' : 'Analitica de Big Data',
+    semester_number: semester,
+    enrollment_status: days >= 80 || failed >= 5 ? 'Revision academica' : 'Regular',
+    academic_load: actions === 0 ? 1 : Math.max(1, Math.min(5, grades + 2)),
+    failed_previous_subjects: failed,
+    program_progress_percent: progress,
+    scholarship_status: index % 4 === 0 ? 'Beca activa' : 'Sin beca registrada',
+    work_shift: index % 3 === 0 ? 'Nocturno' : 'Diurno',
+    tutor_id: 'TUT-DEMO-' + pad2_(tutorIndex),
+    tutor_name: 'Docente Tutor ' + pad2_(tutorIndex),
+    tutor_email: 'tutor' + pad2_(tutorIndex) + '@example.invalid',
+    tutor_role: tutorIndex === 1 ? 'Docente responsable' : 'Tutor academico',
+    tutor_actions_registered: tutorActions,
+    tutor_forum_replies: Math.max(0, Math.round(tutorActions / 4)),
+    tutor_feedback_count: tutorFeedback,
+    tutor_response_hours: followupSignal === 'Alta' ? 18 : followupSignal === 'Media' ? 42 : 96,
+    tutor_activity_coverage: coverage,
+    tutor_followup_signal: followupSignal,
+    actions_registered: actions,
+    forum_posts: forums,
+    grade_cells_with_value: grades,
+    days_since_last_access: days,
+  };
+}
+
+function estimateSemesterRisk_(item) {
+  const actions = Number(item.actions_registered || 0);
+  const forums = Number(item.forum_posts || 0);
+  const grades = Number(item.grade_cells_with_value || 0);
+  const days = Number(item.days_since_last_access || 0);
+  const evidence = [];
+
+  if (days >= 45) addEvidence_(evidence, 2.3, 'Ultimo acceso mayor o igual a 45 dias');
+  else if (days <= 7) addEvidence_(evidence, 0.55, 'Acceso reciente al aula');
+
+  if (actions === 0) addEvidence_(evidence, 2.8, 'Sin actividad en plataforma');
+  else if (actions < 5) addEvidence_(evidence, 1.7, 'Baja actividad en plataforma');
+  else if (actions >= 15) addEvidence_(evidence, 0.55, 'Alta actividad en plataforma');
+
+  if (grades === 0) addEvidence_(evidence, 2.4, 'Sin evaluaciones registradas');
+  else if (grades >= 3) addEvidence_(evidence, 0.55, 'Evaluaciones registradas');
+
+  if (forums === 0) addEvidence_(evidence, 1.35, 'Sin participacion registrada en foros');
+  else if (forums >= 3) addEvidence_(evidence, 0.65, 'Participacion frecuente en foros');
+
+  if (Number(item.academic_load || 0) <= 1) addEvidence_(evidence, 1.25, 'Carga academica actual muy baja');
+  if (Number(item.tutor_feedback_count || 0) === 0) addEvidence_(evidence, 1.4, 'Sin retroalimentacion tutorial registrada');
+  if (Number(item.tutor_response_hours || 0) >= 72) addEvidence_(evidence, 1.45, 'Respuesta tutorial mayor o igual a 72 horas');
+  if (Number(item.tutor_activity_coverage || 0) < 0.35) addEvidence_(evidence, 1.35, 'Cobertura tutorial baja');
+  else if (Number(item.tutor_activity_coverage || 0) >= 0.75) addEvidence_(evidence, 0.78, 'Cobertura tutorial amplia');
+
+  return bayesianFromEvidence_(0.22, evidence);
+}
+
+function estimateCareerRisk_(item, semesterPosterior) {
+  const semester = Number(item.semester_number || 0);
+  const failed = Number(item.failed_previous_subjects || 0);
+  const progress = Number(item.program_progress_percent || 0);
+  const load = Number(item.academic_load || 0);
+  const evidence = [];
+
+  if (failed >= 4) addEvidence_(evidence, 2.4, 'Cuatro o mas materias previas no aprobadas');
+  else if (failed >= 2) addEvidence_(evidence, 1.6, 'Dos o mas materias previas no aprobadas');
+  else if (failed === 0) addEvidence_(evidence, 0.75, 'Sin materias previas no aprobadas');
+
+  if (semester >= 6 && progress < 55) addEvidence_(evidence, 2.1, 'Avance de carrera bajo para el semestre cursado');
+  else if (semester >= 4 && progress < 35) addEvidence_(evidence, 1.75, 'Avance acumulado rezagado');
+  else if (progress >= 60) addEvidence_(evidence, 0.78, 'Avance de carrera consistente');
+
+  if (load <= 1) addEvidence_(evidence, 1.7, 'Carga academica reducida');
+  else if (load >= 4) addEvidence_(evidence, 0.85, 'Carga academica activa');
+
+  if (item.enrollment_status !== 'Regular') addEvidence_(evidence, 2.0, 'Estado de matricula requiere revision academica');
+  if (item.scholarship_status === 'Beca activa') addEvidence_(evidence, 0.85, 'Beca activa registrada');
+  if (item.tutor_followup_signal === 'Bajo') addEvidence_(evidence, 1.35, 'Acompanamiento tutorial bajo');
+  else if (item.tutor_followup_signal === 'Alta') addEvidence_(evidence, 0.85, 'Acompanamiento tutorial alto');
+
+  if (semesterPosterior >= 0.7) addEvidence_(evidence, 1.5, 'Riesgo alto durante el semestre actual');
+  else if (semesterPosterior < 0.3) addEvidence_(evidence, 0.85, 'Riesgo bajo durante el semestre actual');
+
+  return bayesianFromEvidence_(0.16, evidence);
+}
+
+function addEvidence_(evidence, likelihoodRatio, label) {
+  evidence.push({ likelihood_ratio: likelihoodRatio, label });
+}
+
+function bayesianFromEvidence_(prior, evidence) {
+  const likelihood = evidence.reduce((acc, item) => acc * Number(item.likelihood_ratio || 1), 1);
+  const priorOdds = prior / (1 - prior);
+  const posteriorOdds = priorOdds * likelihood;
+  const posterior = posteriorOdds / (1 + posteriorOdds);
+  return {
+    prior_probability: round_(prior),
+    posterior_probability: round_(Math.max(0.02, Math.min(0.98, posterior))),
+    log_likelihood_ratio: round_(Math.log(likelihood || 1)),
+    evidence_factors: evidence.map((item) => item.label),
+  };
+}
+
+function buildTutorProfiles_(summaries) {
+  const byTutor = {};
+  summaries.forEach((row) => {
+    const id = row.tutor_id || 'SIN-TUTOR';
+    if (!byTutor[id]) {
+      byTutor[id] = {
+        tutor_id: id,
+        tutor_name: row.tutor_name || 'Tutor sin dato',
+        tutor_email: row.tutor_email || '',
+        tutor_role: row.tutor_role || 'Tutor',
+        assigned_students: 0,
+        tutor_actions_registered: 0,
+        tutor_forum_replies: 0,
+        tutor_feedback_count: 0,
+        tutor_response_hours: 0,
+        tutor_activity_coverage: 0,
+        tutor_followup_signal: row.tutor_followup_signal || 'Sin dato',
+      };
+    }
+    byTutor[id].assigned_students += 1;
+    byTutor[id].tutor_actions_registered += Number(row.tutor_actions_registered || 0);
+    byTutor[id].tutor_forum_replies += Number(row.tutor_forum_replies || 0);
+    byTutor[id].tutor_feedback_count += Number(row.tutor_feedback_count || 0);
+    byTutor[id].tutor_response_hours += Number(row.tutor_response_hours || 0);
+    byTutor[id].tutor_activity_coverage += Number(row.tutor_activity_coverage || 0);
+  });
+  return Object.keys(byTutor).map((key) => {
+    const tutor = byTutor[key];
+    tutor.tutor_response_hours = round_(tutor.tutor_response_hours / Math.max(1, tutor.assigned_students));
+    tutor.tutor_activity_coverage = round_(tutor.tutor_activity_coverage / Math.max(1, tutor.assigned_students));
+    return tutor;
+  });
+}
+
+function buildTutorSummary_(summaries, tutorProfiles) {
+  const totalStudents = summaries.length || 1;
+  const actions = tutorProfiles.reduce((sum, row) => sum + Number(row.tutor_actions_registered || 0), 0);
+  const forums = tutorProfiles.reduce((sum, row) => sum + Number(row.tutor_forum_replies || 0), 0);
+  const coverage = summaries.reduce((sum, row) => sum + Number(row.tutor_activity_coverage || 0), 0) / totalStudents;
+  const level = actions >= 120 && coverage >= 0.6 ? 'Alta' : actions >= 45 || coverage >= 0.35 ? 'Media' : actions > 0 ? 'Baja' : 'Sin evidencia';
+  return {
+    active_tutors: tutorProfiles.length,
+    actions_registered: actions,
+    forum_posts: forums,
+    activities_with_evidence: Math.round(coverage * 10),
+    activity_coverage: round_(coverage),
+    participation_level: level,
+  };
+}
+
+function buildTutorActivitySummary_(summaries) {
+  const feedback = summaries.reduce((sum, row) => sum + Number(row.tutor_feedback_count || 0), 0);
+  const actions = summaries.reduce((sum, row) => sum + Number(row.tutor_actions_registered || 0), 0);
+  const replies = summaries.reduce((sum, row) => sum + Number(row.tutor_forum_replies || 0), 0);
+  const highFollowup = summaries.filter((row) => row.tutor_followup_signal === 'Alta').length;
+  return [
+    { activity_name: 'Acciones tutoriales identificadas', action: 'registered', count: actions },
+    { activity_name: 'Retroalimentaciones a estudiantes', action: 'feedback', count: feedback },
+    { activity_name: 'Respuestas en foros o mensajes', action: 'reply', count: replies },
+    { activity_name: 'Estudiantes con acompanamiento alto', action: 'coverage', count: highFollowup },
+  ];
+}
+
+function pad2_(value) {
+  return String(value).padStart(2, '0');
 }
 
 function platformLevel_(actions) {

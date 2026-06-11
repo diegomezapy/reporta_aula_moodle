@@ -8,8 +8,10 @@ from typing import Optional
 from app.models import StudentSummary, TutorSummary
 
 
-BAYESIAN_MODEL_VERSION = "bayes_lr_expert_v0.1"
-DEFAULT_DESERTION_PRIOR = 0.20
+BAYESIAN_MODEL_VERSION = "bayes_lr_expert_v0.2_dual_desertion"
+DEFAULT_SEMESTER_DESERTION_PRIOR = 0.22
+DEFAULT_CAREER_DESERTION_PRIOR = 0.16
+DEFAULT_DESERTION_PRIOR = DEFAULT_SEMESTER_DESERTION_PRIOR
 
 
 @dataclass(frozen=True)
@@ -72,19 +74,31 @@ def _score_from_course_total(value: Optional[str]) -> Optional[float]:
     return float(match.group(0).replace(",", "."))
 
 
-def estimate_desertion_probability(
+def _estimate_from_evidence(prior: float, evidence: list[tuple[float, str]]) -> BayesianRiskEstimate:
+    log_likelihood_ratio = sum(math.log(max(lr, 0.05)) for lr, _ in evidence)
+    posterior_odds = _odds(prior) * math.exp(log_likelihood_ratio)
+    posterior = _clamp_probability(_probability_from_odds(posterior_odds))
+    return BayesianRiskEstimate(
+        prior_probability=round(prior, 4),
+        posterior_probability=round(posterior, 4),
+        log_likelihood_ratio=round(log_likelihood_ratio, 4),
+        evidence_factors=[label for _, label in evidence],
+    )
+
+
+def estimate_semester_desertion_probability(
     summary: StudentSummary,
     tutor_summary: TutorSummary,
     prior_probability: Optional[float] = None,
 ) -> BayesianRiskEstimate:
-    """Estimate dropout risk with auditable expert likelihood ratios.
+    """Estimate semester dropout risk with auditable expert likelihood ratios.
 
     This is an initial Bayesian layer for weekly monitoring. The prior can be the
     previous week's posterior for the same student; otherwise a conservative
     course-level prior is used.
     """
 
-    prior = _clamp_probability(prior_probability if prior_probability is not None else DEFAULT_DESERTION_PRIOR)
+    prior = _clamp_probability(prior_probability if prior_probability is not None else DEFAULT_SEMESTER_DESERTION_PRIOR)
     evidence: list[tuple[float, str]] = []
 
     if summary.platform_level == "Sin evidencia":
@@ -128,6 +142,9 @@ def estimate_desertion_probability(
     elif course_total is not None and course_total >= 80:
         _add_evidence(evidence, 0.75, "Total del curso igual o superior a 80")
 
+    if summary.academic_load is not None and summary.academic_load <= 1:
+        _add_evidence(evidence, 1.25, "Carga academica actual muy baja")
+
     if tutor_summary.actions_registered == 0:
         _add_evidence(evidence, 1.25, "Sin evidencia de acompanamiento del tutor en el reporte")
     elif tutor_summary.activity_coverage < 0.25:
@@ -135,12 +152,74 @@ def estimate_desertion_probability(
     elif tutor_summary.activity_coverage >= 0.5:
         _add_evidence(evidence, 0.9, "Cobertura tutorial amplia")
 
-    log_likelihood_ratio = sum(math.log(max(lr, 0.05)) for lr, _ in evidence)
-    posterior_odds = _odds(prior) * math.exp(log_likelihood_ratio)
-    posterior = _clamp_probability(_probability_from_odds(posterior_odds))
-    return BayesianRiskEstimate(
-        prior_probability=round(prior, 4),
-        posterior_probability=round(posterior, 4),
-        log_likelihood_ratio=round(log_likelihood_ratio, 4),
-        evidence_factors=[label for _, label in evidence],
-    )
+    if summary.tutor_feedback_count == 0 and summary.tutor_id:
+        _add_evidence(evidence, 1.35, "Sin retroalimentacion tutorial individual registrada")
+    if summary.tutor_response_hours is not None and summary.tutor_response_hours >= 72:
+        _add_evidence(evidence, 1.35, "Respuesta tutorial mayor o igual a 72 horas")
+    if summary.tutor_activity_coverage is not None and summary.tutor_activity_coverage < 0.35:
+        _add_evidence(evidence, 1.3, "Cobertura tutorial individual baja")
+    elif summary.tutor_activity_coverage is not None and summary.tutor_activity_coverage >= 0.75:
+        _add_evidence(evidence, 0.78, "Cobertura tutorial individual amplia")
+
+    return _estimate_from_evidence(prior, evidence)
+
+
+def estimate_career_desertion_probability(
+    summary: StudentSummary,
+    semester_estimate: BayesianRiskEstimate,
+    prior_probability: Optional[float] = None,
+) -> BayesianRiskEstimate:
+    """Estimate career dropout risk from academic trajectory and support signals."""
+
+    prior = _clamp_probability(prior_probability if prior_probability is not None else DEFAULT_CAREER_DESERTION_PRIOR)
+    evidence: list[tuple[float, str]] = []
+    semester = summary.semester_number or 0
+    failed = summary.failed_previous_subjects or 0
+    progress = summary.program_progress_percent
+    load = summary.academic_load
+
+    if failed >= 4:
+        _add_evidence(evidence, 2.4, "Cuatro o mas materias previas no aprobadas")
+    elif failed >= 2:
+        _add_evidence(evidence, 1.6, "Dos o mas materias previas no aprobadas")
+    elif failed == 0:
+        _add_evidence(evidence, 0.75, "Sin materias previas no aprobadas")
+
+    if progress is not None and semester >= 6 and progress < 55:
+        _add_evidence(evidence, 2.1, "Avance de carrera bajo para el semestre cursado")
+    elif progress is not None and semester >= 4 and progress < 35:
+        _add_evidence(evidence, 1.75, "Avance acumulado rezagado")
+    elif progress is not None and progress >= 60:
+        _add_evidence(evidence, 0.78, "Avance de carrera consistente")
+
+    if load is not None and load <= 1:
+        _add_evidence(evidence, 1.7, "Carga academica reducida")
+    elif load is not None and load >= 4:
+        _add_evidence(evidence, 0.85, "Carga academica activa")
+
+    if summary.enrollment_status and summary.enrollment_status != "Regular":
+        _add_evidence(evidence, 2.0, "Estado de matricula requiere revision academica")
+    if summary.scholarship_status == "Beca activa":
+        _add_evidence(evidence, 0.85, "Beca activa registrada")
+
+    if summary.tutor_followup_signal == "Bajo":
+        _add_evidence(evidence, 1.35, "Acompanamiento tutorial bajo")
+    elif summary.tutor_followup_signal == "Alta":
+        _add_evidence(evidence, 0.85, "Acompanamiento tutorial alto")
+
+    if semester_estimate.posterior_probability >= 0.7:
+        _add_evidence(evidence, 1.5, "Riesgo alto durante el semestre actual")
+    elif semester_estimate.posterior_probability < 0.3:
+        _add_evidence(evidence, 0.85, "Riesgo bajo durante el semestre actual")
+
+    return _estimate_from_evidence(prior, evidence)
+
+
+def estimate_desertion_probability(
+    summary: StudentSummary,
+    tutor_summary: TutorSummary,
+    prior_probability: Optional[float] = None,
+) -> BayesianRiskEstimate:
+    """Backward-compatible alias for semester dropout risk."""
+
+    return estimate_semester_desertion_probability(summary, tutor_summary, prior_probability)

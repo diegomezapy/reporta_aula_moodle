@@ -584,3 +584,109 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - Boton visible de generacion: implementado.
 - Generacion GAS de muestra con escritura Sheets/Drive: verificada.
 - Extraccion real Moodle con credenciales institucionales: pendiente de reemplazar/implementar sobre el flujo seguro de GAS.
+
+## 2026-06-11 15:14 - Identificadores y doble modalidad de desercion
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Aula Moodle.
+- Ruta local: `/tmp/reporta_aula_sheet_button`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Responsable: Codex.
+- Version: `2026.06.11-dual-risk-identifiers`.
+
+### Objetivo de la intervencion
+
+- Mostrar datos identificadores de estudiantes y tutores/profesores en el tablero.
+- Incorporar variables academicas del estudiante y variables del tutor/profesor como determinantes auditables del modelo bayesiano.
+- Separar la probabilidad de desercion en dos modalidades: durante el semestre y en la carrera.
+
+### Diagnostico inicial
+
+- La muestra GAS y el tablero exponian un contrato minimo: `user_id`, nombre, correo, actividad, foros, evaluaciones y una sola probabilidad.
+- La vista de tutorias solo mostraba KPIs agregados, sin profesores/tutores identificados.
+- Los campos historicos `bayesian_*` y `desertion_*` no distinguian entre riesgo semestral y riesgo de carrera.
+
+### Acciones realizadas
+
+- Se amplio `gas/Code.gs` para generar y escribir en `GAS_RESUMEN` identificadores anonimizados de estudiante, documento demo, cohorte, carrera, semestre, estado de matricula, carga academica, materias previas, avance de carrera, beca, turno, tutor asignado, rol, correo, acciones, respuestas, retroalimentacion, tiempo de respuesta y cobertura.
+- Se agregaron salidas `semester_*` y `career_*` para prior, posterior, log LR, probabilidad, nivel y factores de riesgo.
+- Se conservaron `bayesian_*` y `desertion_*` como alias de la modalidad semestre por compatibilidad.
+- Se agrego selector global `Modalidad` con opciones `Semestre` y `Carrera`.
+- Se ajustaron KPIs, dona, dispersion, filtros, tabla de riesgo, evidencia bayesiana y detalle de estudiante para usar la modalidad activa.
+- Se agrego una vista de tutores/profesores identificados con variables de seguimiento.
+- Se actualizo el modelo local Python con campos y estimadores `semester_*` y `career_*`.
+- Se actualizo versionado de assets y service worker.
+- Se actualizaron README, manual tecnico, manual de usuario y diccionario de datos.
+
+### Archivos modificados
+
+- `gas/Code.gs`.
+- `assets/pages-app.js`.
+- `assets/pages-app.css`.
+- `index.html`.
+- `service-worker.js`.
+- `app/bayesian.py`.
+- `app/reporting.py`.
+- `app/models.py`.
+- `tests/test_reporting.py`.
+- `README.md`.
+- `docs/diccionario_datos.md`.
+- `docs/manual_usuario.md`.
+- `docs/manual_tecnico.md`.
+- `BITACORA.md`.
+
+### Comandos o scripts ejecutados
+
+- `node --check assets/pages-app.js`.
+- `node --input-type=commonjs --check - < gas/Code.gs`.
+- `python3 -m compileall app tests`.
+- `/Users/diegobernardomezabogado/reporta_aula_moodle/.venv/bin/python -m pytest`.
+- `clasp push -f`.
+- `clasp deploy -i AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA -V 5 -d 'Reporta Aula Moodle dual risk identifiers 20260611'`.
+- `curl` contra `/exec?api=runSample&callback=cb&courseId=1718&spreadsheetId=...`.
+- `python3 -m http.server 8070`.
+- `curl` contra `http://127.0.0.1:8070/`, `assets/pages-app.js` y `service-worker.js`.
+
+### Resultados verificados
+
+- Sintaxis JavaScript correcta.
+- Sintaxis GAS compatible con Node para revision local.
+- Compilacion Python correcta.
+- Pruebas Python: 5 passed, 1 warning por LibreSSL/urllib3.
+- GAS remoto contiene `gas_demo_bayes_v0.2_dual_desertion` segun pull temporal con `clasp clone`.
+- Deployment publico actualizado: `AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA @5`.
+- Corrida GAS generada: `gas-demo-20260611-151950`.
+- `api=runSample` devuelve `student_moodle_id`, `student_document_id`, variables del tutor, `semester_desertion_probability` y `career_desertion_probability`.
+- `api=report&callback=cb` lee desde la hoja el contrato nuevo.
+- Servidor local `http://127.0.0.1:8070/` sirve `riskModeSwitch`, botones `Semestre/Carrera`, `tutorRoster`, `Generar extraccion` y assets `20260611-dual-risk-identifiers`.
+- `service-worker.js` local sirve cache `reporta-aula-moodle-pages-v20260611-dual-risk-identifiers`.
+
+### Errores o incidentes
+
+- La prueba existente esperaba prior `0.20`. Se actualizo a `0.22` para la modalidad semestre y se agregaron verificaciones de `career_*`.
+
+### Soluciones aplicadas
+
+- Modelo bayesiano dual:
+  - `Semestre`: actividad Moodle, evaluaciones, foros, ultimo acceso, carga actual y acompanamiento tutorial.
+  - `Carrera`: trayectoria academica, avance, materias previas, estado de matricula, carga, beca, acompanamiento tutorial y senal del semestre.
+- Datos de demostracion anonimizados para evitar exposicion publica de identificadores reales.
+
+### Pendientes
+
+- Verificar GitHub Pages publicado despues de commit y push.
+- Reemplazar la muestra `runSample` por extraccion Moodle real con credenciales seguras en GAS.
+- Incorporar al manual maestro el patron reutilizable de modelos bayesianos con modalidades separadas y alias historicos de compatibilidad.
+
+### Riesgos
+
+- La demo publica no debe confundirse con datos reales: los identificadores son ficticios.
+- La probabilidad bayesiana es senal operativa de seguimiento, no decision automatica ni sancion.
+
+### Recomendaciones
+
+- Mantener los campos `semester_*` y `career_*` como contrato estable del tablero.
+- Calibrar priors y razones de verosimilitud con cohortes historicas antes de presentar el modelo como prediccion estadistica formal.

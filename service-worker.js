@@ -1,10 +1,10 @@
-const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-generate-extraction";
+const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-dual-risk-identifiers";
 const APP_SHELL = [
   "./",
   "index.html",
   "manifest.json",
-  "assets/pages-app.css?v=20260611-generate-extraction",
-  "assets/pages-app.js?v=20260611-generate-extraction",
+  "assets/pages-app.css?v=20260611-dual-risk-identifiers",
+  "assets/pages-app.js?v=20260611-dual-risk-identifiers",
 ];
 
 self.addEventListener("install", (event) => {

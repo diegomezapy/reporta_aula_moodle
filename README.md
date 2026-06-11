@@ -64,7 +64,10 @@ Luego abrir `/exec?api=report&callback=cb`. Si responde `ok:true`, GAS esta acce
 - Informe nativo de participacion por actividad.
 - Participacion del tutor/docente desde el informe nativo de participacion, cuando Moodle expone esos roles.
 - Resumen por estudiante con indicadores separados de actividad en plataforma y participacion evaluativa.
-- Estimacion bayesiana inicial de probabilidad de desercion a partir de actividad, evaluacion, foros, ultimo acceso y acompanamiento tutorial.
+- Identificadores operativos de estudiantes y tutores/profesores. En la demo publica son anonimizados (`MOODLE-STU-*`, `DOC-DEMO-*`, `TUT-DEMO-*`).
+- Variables academicas del estudiante: cohorte, carrera, semestre, estado de matricula, carga academica, materias previas, avance de carrera, beca y turno.
+- Variables del tutor/profesor: rol, acciones, respuestas en foros, retroalimentaciones, tiempo de respuesta, cobertura y senal de acompanamiento.
+- Estimacion bayesiana inicial en dos modalidades: desercion durante el semestre y desercion en la carrera.
 
 ## Tablero
 
@@ -74,6 +77,7 @@ La primera pantalla incluye:
 
 - KPIs generales del aula.
 - Filtros globales por estudiante, nivel de riesgo, actividad en plataforma, participacion evaluativa y alertas.
+- Selector de modalidad `Semestre/Carrera` para recalcular KPIs, semaforo, filtros, priorizacion y detalle individual.
 - KPIs dinamicos que se recalculan con los filtros activos.
 - Grafico de dona para el semaforo de riesgo.
 - Grafico de dispersion para cruzar acciones Moodle y evaluaciones registradas.
@@ -81,9 +85,9 @@ La primera pantalla incluye:
 - Distribucion de participacion evaluativa.
 - Ranking de actividades con mas evidencia.
 - Tabla filtrable por estudiante.
-- Panel individual con ultimo acceso, acciones, foros, evaluaciones, total del curso e indicador de seguimiento.
-- Vista de riesgo de desercion con priorizacion por estudiante, bandas de probabilidad y evidencia bayesiana.
-- Vista de tutoria con acciones, foros, cobertura y actividades con evidencia.
+- Panel individual con identificadores, trayectoria academica, actividad Moodle, tutor asignado y factores bayesianos de la modalidad activa.
+- Vista de riesgo de desercion con priorizacion por estudiante, bandas de probabilidad y evidencia bayesiana para semestre o carrera.
+- Vista de tutoria con profesores/tutores identificados, acciones, foros, retroalimentacion, cobertura y actividades con evidencia.
 - Vista de automatizacion para configurar corridas periodicas desde GAS.
 - Vista de auditoria con registro de uso de la app.
 - PWA basica con `manifest.json` y `service-worker.js`.
@@ -100,7 +104,7 @@ La app publica muestra la version activa en el footer y en la vista `Corridas`.
 
 Version actual:
 
-`2026.06.11-generate-extraction`
+`2026.06.11-dual-risk-identifiers`
 
 El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
 
@@ -133,16 +137,17 @@ La configuracion productiva debe guardarse en Google Sheets y/o Script Propertie
 
 ## Riesgo De Desercion
 
-La app calcula una probabilidad inicial de desercion con un modelo bayesiano auditable basado en razones de verosimilitud definidas por criterio experto. En cada corrida:
+La app calcula probabilidades iniciales de desercion con un modelo bayesiano auditable basado en razones de verosimilitud definidas por criterio experto. En cada corrida:
 
-1. Se parte de un prior conservador de desercion si no hay historial.
-2. Si existe una corrida previa del mismo curso, el posterior anterior del estudiante se usa como prior semanal.
-3. Las evidencias de Moodle actualizan el riesgo: actividad en plataforma, participacion evaluativa, foros, ultimo acceso, total del curso y senal tutorial.
-4. El reporte conserva `bayesian_prior_probability`, `bayesian_posterior_probability`, `bayesian_log_likelihood_ratio`, factores de evidencia y version del modelo.
+1. Para `Semestre`, se parte de un prior conservador y se actualiza con actividad Moodle, participacion evaluativa, foros, ultimo acceso, carga academica actual y variables de acompanamiento tutorial.
+2. Para `Carrera`, se parte de un prior distinto y se actualiza con trayectoria academica: semestre, avance de carrera, materias previas, carga, estado de matricula, beca, acompanamiento tutorial y senal del riesgo semestral.
+3. Si existe una corrida previa del mismo curso, el posterior anterior del estudiante puede usarse como prior semanal en la modalidad semestre.
+4. El reporte conserva `semester_bayesian_*`, `career_bayesian_*`, factores de evidencia, log LR, nivel de riesgo, probabilidad y version del modelo.
+5. Los campos historicos `bayesian_*` y `desertion_*` se conservan como alias de la modalidad semestre para compatibilidad.
 
-Este valor sirve para priorizar seguimiento tutorial. No debe usarse como decision automatica ni como sancion academica.
+Estos valores sirven para priorizar seguimiento tutorial y revision academica. No deben usarse como decision automatica ni como sancion academica.
 
-En la vista `Riesgo`, el tablero muestra el prior medio, posterior medio, maximo posterior, version del modelo y cantidad de evidencias aplicadas. Tambien presenta una tabla de evidencia por estudiante con prior, posterior y log LR para auditoria docente.
+En la vista `Riesgo`, el tablero muestra el prior medio, posterior medio, maximo posterior, version del modelo y cantidad de evidencias aplicadas para la modalidad seleccionada. Tambien presenta una tabla de evidencia por estudiante con prior, posterior y log LR para auditoria docente.
 
 ## Ejecucion Local Opcional
 

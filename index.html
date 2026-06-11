@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#246f5c" />
     <title>Reporta Aula Moodle</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-generate-extraction" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-dual-risk-identifiers" />
   </head>
   <body>
     <main class="shell">
@@ -61,6 +61,13 @@
             <option value="low">Bajo</option>
           </select>
         </label>
+        <div class="risk-mode-control" aria-label="Modalidad de desercion">
+          <span>Modalidad</span>
+          <div id="riskModeSwitch" class="segmented-control">
+            <button class="active" type="button" data-risk-mode="semester">Semestre</button>
+            <button type="button" data-risk-mode="career">Carrera</button>
+          </div>
+        </div>
         <label>
           Plataforma
           <select id="platformFilter">
@@ -167,6 +174,7 @@
               <h2>Probabilidad De Desercion</h2>
               <span id="riskTotal" class="pill muted">0</span>
             </div>
+            <span id="activeRiskMode" class="pill muted">Semestre</span>
             <div id="riskBars" class="bar-stack"></div>
           </article>
 
@@ -242,6 +250,14 @@
               <span id="tutorActivityCount" class="pill muted">0</span>
             </div>
             <div id="tutorActivityBars" class="activity-bars"></div>
+          </article>
+
+          <article class="panel tutor-roster-panel">
+            <div class="panel-head">
+              <h2>Tutores Identificados</h2>
+              <span id="tutorRosterCount" class="pill muted">0</span>
+            </div>
+            <div id="tutorRoster" class="tutor-roster"></div>
           </article>
         </section>
       </section>
@@ -343,6 +359,6 @@
         <span id="cacheState">Cache pendiente</span>
       </footer>
     </main>
-    <script src="assets/pages-app.js?v=20260611-generate-extraction"></script>
+    <script src="assets/pages-app.js?v=20260611-dual-risk-identifiers"></script>
   </body>
 </html>

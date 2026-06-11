@@ -51,9 +51,14 @@ def test_tutor_summary_and_desertion_risk_are_added_to_students():
     assert tutor_summary.participation_level == "Baja"
     assert enriched[0].desertion_probability >= 0.7
     assert enriched[0].risk_model_version.startswith("bayes_lr")
-    assert enriched[0].bayesian_prior_probability == 0.2
+    assert enriched[0].bayesian_prior_probability == 0.22
+    assert enriched[0].semester_bayesian_prior_probability == 0.22
+    assert enriched[0].career_bayesian_prior_probability == 0.16
     assert enriched[0].bayesian_posterior_probability >= 0.7
+    assert enriched[0].semester_desertion_probability == enriched[0].bayesian_posterior_probability
+    assert enriched[0].career_desertion_probability is not None
     assert enriched[0].desertion_risk_level == "Critico"
+    assert enriched[0].semester_desertion_risk_level == "Critico"
     assert enriched[0].follow_up_alert is True
 
 

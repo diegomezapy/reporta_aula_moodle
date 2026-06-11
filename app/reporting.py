@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 from typing import Optional, Tuple, Union
 
-from app.bayesian import BAYESIAN_MODEL_VERSION, estimate_desertion_probability
+from app.bayesian import BAYESIAN_MODEL_VERSION, estimate_career_desertion_probability, estimate_semester_desertion_probability
 from app.models import Participant, ParticipationRow, StudentSummary, TableRow, TutorSummary
 from app.moodle_client import key_norm
 
@@ -209,34 +209,52 @@ def apply_desertion_risk(
 
         heuristic_probability = max(0.02, min(0.98, score))
         prior = prior_by_student.get(_identity(summary.user_id, summary.name))
-        bayesian = estimate_desertion_probability(summary, tutor_summary, prior)
-        probability = bayesian.posterior_probability
-        level = "Bajo"
-        if probability >= 0.7:
-            level = "Critico"
-        elif probability >= 0.5:
-            level = "Alto"
-        elif probability >= 0.3:
-            level = "Medio"
+        semester_bayesian = estimate_semester_desertion_probability(summary, tutor_summary, prior)
+        career_bayesian = estimate_career_desertion_probability(summary, semester_bayesian)
+        probability = semester_bayesian.posterior_probability
+        level = _risk_level(probability)
+        career_level = _risk_level(career_bayesian.posterior_probability)
 
         enriched.append(
             summary.model_copy(
                 update={
-                    "follow_up_alert": summary.follow_up_alert or probability >= 0.5,
+                    "follow_up_alert": summary.follow_up_alert or probability >= 0.5 or career_bayesian.posterior_probability >= 0.5,
                     "tutor_activity_signal": tutor_signal,
                     "risk_model_version": BAYESIAN_MODEL_VERSION,
                     "heuristic_probability": round(heuristic_probability, 2),
-                    "bayesian_prior_probability": bayesian.prior_probability,
-                    "bayesian_posterior_probability": bayesian.posterior_probability,
-                    "bayesian_log_likelihood_ratio": bayesian.log_likelihood_ratio,
-                    "bayesian_evidence_factors": bayesian.evidence_factors[:8],
+                    "semester_bayesian_prior_probability": semester_bayesian.prior_probability,
+                    "semester_bayesian_posterior_probability": semester_bayesian.posterior_probability,
+                    "semester_bayesian_log_likelihood_ratio": semester_bayesian.log_likelihood_ratio,
+                    "semester_desertion_probability": semester_bayesian.posterior_probability,
+                    "semester_desertion_risk_level": level,
+                    "semester_desertion_risk_factors": semester_bayesian.evidence_factors[:8],
+                    "career_bayesian_prior_probability": career_bayesian.prior_probability,
+                    "career_bayesian_posterior_probability": career_bayesian.posterior_probability,
+                    "career_bayesian_log_likelihood_ratio": career_bayesian.log_likelihood_ratio,
+                    "career_desertion_probability": career_bayesian.posterior_probability,
+                    "career_desertion_risk_level": career_level,
+                    "career_desertion_risk_factors": career_bayesian.evidence_factors[:8],
+                    "bayesian_prior_probability": semester_bayesian.prior_probability,
+                    "bayesian_posterior_probability": semester_bayesian.posterior_probability,
+                    "bayesian_log_likelihood_ratio": semester_bayesian.log_likelihood_ratio,
+                    "bayesian_evidence_factors": semester_bayesian.evidence_factors[:8],
                     "desertion_probability": round(probability, 2),
                     "desertion_risk_level": level,
-                    "desertion_risk_factors": bayesian.evidence_factors[:6] or factors[:6],
+                    "desertion_risk_factors": semester_bayesian.evidence_factors[:6] or factors[:6],
                 }
             )
         )
     return enriched
+
+
+def _risk_level(probability: float) -> str:
+    if probability >= 0.7:
+        return "Critico"
+    if probability >= 0.5:
+        return "Alto"
+    if probability >= 0.3:
+        return "Medio"
+    return "Bajo"
 
 
 def build_activity_summary(rows: list[ParticipationRow]) -> list[dict[str, Union[str, int, None]]]:

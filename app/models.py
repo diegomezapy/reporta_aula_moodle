@@ -57,9 +57,32 @@ class ParticipationRow(BaseModel):
 
 class StudentSummary(BaseModel):
     user_id: Optional[str] = None
+    student_moodle_id: Optional[str] = None
+    student_document_id: Optional[str] = None
     name: str
     email: Optional[str] = None
+    cohort: Optional[str] = None
+    career: Optional[str] = None
+    semester_number: Optional[int] = None
+    enrollment_status: Optional[str] = None
+    academic_load: Optional[int] = None
+    failed_previous_subjects: Optional[int] = None
+    program_progress_percent: Optional[float] = None
+    scholarship_status: Optional[str] = None
+    work_shift: Optional[str] = None
     last_access: Optional[str] = None
+    days_since_last_access: Optional[float] = None
+    last_access_text: Optional[str] = None
+    tutor_id: Optional[str] = None
+    tutor_name: Optional[str] = None
+    tutor_email: Optional[str] = None
+    tutor_role: Optional[str] = None
+    tutor_actions_registered: int = 0
+    tutor_forum_replies: int = 0
+    tutor_feedback_count: int = 0
+    tutor_response_hours: Optional[float] = None
+    tutor_activity_coverage: Optional[float] = None
+    tutor_followup_signal: str = "Sin dato"
     actions_registered: int = 0
     forum_posts: int = 0
     grade_cells_with_value: int = 0
@@ -70,6 +93,18 @@ class StudentSummary(BaseModel):
     tutor_activity_signal: str = "Sin dato"
     risk_model_version: str = "heuristic_v1"
     heuristic_probability: Optional[float] = None
+    semester_bayesian_prior_probability: Optional[float] = None
+    semester_bayesian_posterior_probability: Optional[float] = None
+    semester_bayesian_log_likelihood_ratio: Optional[float] = None
+    semester_desertion_probability: Optional[float] = None
+    semester_desertion_risk_level: str = "Sin dato"
+    semester_desertion_risk_factors: list[str] = Field(default_factory=list)
+    career_bayesian_prior_probability: Optional[float] = None
+    career_bayesian_posterior_probability: Optional[float] = None
+    career_bayesian_log_likelihood_ratio: Optional[float] = None
+    career_desertion_probability: Optional[float] = None
+    career_desertion_risk_level: str = "Sin dato"
+    career_desertion_risk_factors: list[str] = Field(default_factory=list)
     bayesian_prior_probability: Optional[float] = None
     bayesian_posterior_probability: Optional[float] = None
     bayesian_log_likelihood_ratio: Optional[float] = None

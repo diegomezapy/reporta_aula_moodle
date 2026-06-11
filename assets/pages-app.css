@@ -175,7 +175,7 @@ h2 {
 
 .filter-band {
   display: grid;
-  grid-template-columns: 110px minmax(220px, 1.4fr) repeat(3, minmax(150px, 0.9fr)) 130px 96px;
+  grid-template-columns: 110px minmax(220px, 1.25fr) minmax(150px, 0.8fr) minmax(210px, 0.95fr) repeat(2, minmax(150px, 0.8fr)) 130px 96px;
   gap: 10px;
   align-items: end;
   margin-bottom: 16px;
@@ -199,6 +199,41 @@ h2 {
 
 .filter-heading strong {
   font-size: 14px;
+}
+
+.risk-mode-control {
+  display: grid;
+  gap: 7px;
+}
+
+.risk-mode-control > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  min-height: 42px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+}
+
+.segmented-control button {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.segmented-control button.active {
+  background: var(--accent);
+  color: #ffffff;
 }
 
 .checkline.slim {
@@ -265,7 +300,7 @@ h2 {
 }
 
 .kpi-grid.compact-wide {
-  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  grid-template-columns: repeat(6, minmax(130px, 1fr));
 }
 
 .kpi {
@@ -579,6 +614,10 @@ h2 {
   grid-column: span 3;
 }
 
+.tutor-roster-panel {
+  grid-column: span 2;
+}
+
 .students-panel,
 .detail-panel {
   min-height: 560px;
@@ -741,6 +780,27 @@ label {
   overflow-wrap: anywhere;
 }
 
+.student-detail h4 {
+  margin: 16px 0 8px;
+  font-size: 13px;
+}
+
+.tutor-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.tutor-card {
+  display: grid;
+  gap: 12px;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+}
+
 label {
   display: grid;
   gap: 7px;
@@ -895,6 +955,14 @@ button.secondary:hover {
   color: var(--muted);
 }
 
+#activeRiskMode {
+  margin-bottom: 12px;
+}
+
+#activeRiskMode + .bar-stack {
+  margin-top: 12px;
+}
+
 .pill.error {
   background: rgba(161, 59, 53, 0.12);
   color: var(--bad);
@@ -976,6 +1044,10 @@ button.secondary:hover {
   }
 
   .evidence-panel {
+    grid-column: auto;
+  }
+
+  .tutor-roster-panel {
     grid-column: auto;
   }
 

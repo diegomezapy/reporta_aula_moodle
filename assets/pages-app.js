@@ -1,13 +1,28 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
-const MODEL_VERSION = "github_pages_gas_bayes_v0.2";
-const APP_VERSION = "2026.06.11-generate-extraction";
+const MODEL_VERSION = "github_pages_gas_bayes_v0.3_dual_desertion";
+const APP_VERSION = "2026.06.11-dual-risk-identifiers";
 const APP_BUILD_DATE = "2026-06-11";
 const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
+const RISK_MODES = {
+  semester: {
+    label: "Semestre",
+    shortLabel: "Semestre",
+    description: "desercion durante el semestre",
+    prefix: "semester",
+  },
+  career: {
+    label: "Carrera",
+    shortLabel: "Carrera",
+    description: "desercion en la carrera",
+    prefix: "career",
+  },
+};
 
 const state = {
   report: null,
   selectedStudentKey: null,
   source: "local",
+  riskMode: "semester",
   versionRefreshNotice: false,
 };
 
@@ -54,8 +69,12 @@ const els = {
   studentsTable: $("#studentsTable"),
   studentDetail: $("#studentDetail"),
   detailAlert: $("#detailAlert"),
+  riskModeButtons: $$("#riskModeSwitch button"),
+  activeRiskMode: $("#activeRiskMode"),
   tutorLevel: $("#tutorLevel"),
   tutorKpis: $("#tutorKpis"),
+  tutorRosterCount: $("#tutorRosterCount"),
+  tutorRoster: $("#tutorRoster"),
   tutorActivityCount: $("#tutorActivityCount"),
   tutorActivityBars: $("#tutorActivityBars"),
   automationState: $("#automationState"),
@@ -123,7 +142,22 @@ function pct(value, total) {
 }
 
 function studentKey(row) {
-  return row.user_id || row.name || "";
+  return row.student_moodle_id || row.user_id || row.name || "";
+}
+
+function parseNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseBoolean(value) {
+  if (typeof value === "boolean") return value;
+  const text = String(value ?? "").toLowerCase();
+  return ["true", "1", "si", "yes"].includes(text);
+}
+
+function hasValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== "";
 }
 
 function labelClass(label) {
@@ -177,6 +211,54 @@ function riskLevel(value) {
   return "Bajo";
 }
 
+function activeRiskConfig() {
+  return RISK_MODES[state.riskMode] || RISK_MODES.semester;
+}
+
+function riskField(row, suffix, fallback) {
+  const prefix = activeRiskConfig().prefix;
+  const value = row?.[`${prefix}_${suffix}`];
+  return value ?? fallback;
+}
+
+function activeRiskProbability(row) {
+  return parseNumber(riskField(row, "desertion_probability", row?.desertion_probability), 0);
+}
+
+function activeRiskLevel(row) {
+  return riskField(row, "desertion_risk_level", row?.desertion_risk_level || riskLevel(activeRiskProbability(row)));
+}
+
+function activeRiskFactors(row) {
+  return parseFactors(riskField(row, "desertion_risk_factors", row?.desertion_risk_factors));
+}
+
+function activePrior(row) {
+  return parseNumber(riskField(row, "bayesian_prior_probability", row?.bayesian_prior_probability), 0);
+}
+
+function activePosterior(row) {
+  return parseNumber(riskField(row, "bayesian_posterior_probability", row?.bayesian_posterior_probability), activeRiskProbability(row));
+}
+
+function activeLogLikelihoodRatio(row) {
+  return parseNumber(riskField(row, "bayesian_log_likelihood_ratio", row?.bayesian_log_likelihood_ratio), 0);
+}
+
+function activeEvidenceFactors(row) {
+  return activeRiskFactors(row);
+}
+
+function parseFactors(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && value.trim()) return value.split(";").map((x) => x.trim()).filter(Boolean);
+  return [];
+}
+
+function evidenceLabel(items) {
+  return items.slice(0, 3).join("; ") || "Sin factores";
+}
+
 function platformLevel(actions) {
   if (actions >= 15) return "Alta";
   if (actions >= 7) return "Media";
@@ -194,22 +276,141 @@ function evaluativeLevel(grades) {
 function evidenceFactors(row) {
   if (Array.isArray(row.bayesian_evidence_factors)) return row.bayesian_evidence_factors;
   if (Array.isArray(row.desertion_risk_factors)) return row.desertion_risk_factors;
+  if (typeof row.desertion_risk_factors === "string") return parseFactors(row.desertion_risk_factors);
   if (typeof row.evidence === "string" && row.evidence.trim()) return row.evidence.split(";").map((x) => x.trim()).filter(Boolean);
   return [];
 }
 
-function convertGasSummary(row) {
-  const posterior = Number(row.posterior ?? row.desertion_probability ?? 0);
-  const factors = evidenceFactors(row);
-  const actions = Number(row.actions ?? row.actions_registered ?? 0);
-  const forums = Number(row.forums ?? row.forum_posts ?? 0);
-  const grades = Number(row.grades ?? row.grade_cells_with_value ?? 0);
+function addEvidence(items, likelihoodRatio, label) {
+  items.push({ likelihoodRatio, label });
+}
+
+function estimateFromEvidence(prior, evidence) {
+  const likelihood = evidence.reduce((acc, item) => acc * Number(item.likelihoodRatio || 1), 1);
+  const priorOdds = prior / (1 - prior);
+  const posteriorOdds = priorOdds * likelihood;
+  const posterior = Math.max(0.02, Math.min(0.98, posteriorOdds / (1 + posteriorOdds)));
   return {
+    prior: Number(prior.toFixed(4)),
+    posterior: Number(posterior.toFixed(4)),
+    logLr: Number(Math.log(likelihood || 1).toFixed(4)),
+    factors: evidence.map((item) => item.label),
+  };
+}
+
+function estimateSemesterRisk(row) {
+  const evidence = [];
+  const actions = parseNumber(row.actions_registered);
+  const forums = parseNumber(row.forum_posts);
+  const grades = parseNumber(row.grade_cells_with_value);
+  const days = parseNumber(row.days_since_last_access);
+
+  if (days >= 45) addEvidence(evidence, 2.3, "Ultimo acceso mayor o igual a 45 dias");
+  else if (days <= 7) addEvidence(evidence, 0.55, "Acceso reciente al aula");
+
+  if (actions === 0) addEvidence(evidence, 2.8, "Sin actividad en plataforma");
+  else if (actions < 5) addEvidence(evidence, 1.7, "Baja actividad en plataforma");
+  else if (actions >= 15) addEvidence(evidence, 0.55, "Alta actividad en plataforma");
+
+  if (grades === 0) addEvidence(evidence, 2.4, "Sin evaluaciones registradas");
+  else if (grades >= 3) addEvidence(evidence, 0.55, "Evaluaciones registradas");
+
+  if (forums === 0) addEvidence(evidence, 1.35, "Sin participacion registrada en foros");
+  else if (forums >= 3) addEvidence(evidence, 0.65, "Participacion frecuente en foros");
+
+  if (hasValue(row.academic_load) && parseNumber(row.academic_load) <= 1) addEvidence(evidence, 1.25, "Carga academica actual muy baja");
+  if (hasValue(row.tutor_feedback_count) && parseNumber(row.tutor_feedback_count) === 0) addEvidence(evidence, 1.4, "Sin retroalimentacion tutorial registrada");
+  if (hasValue(row.tutor_response_hours) && parseNumber(row.tutor_response_hours) >= 72) addEvidence(evidence, 1.45, "Respuesta tutorial mayor o igual a 72 horas");
+  if (hasValue(row.tutor_activity_coverage) && parseNumber(row.tutor_activity_coverage) < 0.35) addEvidence(evidence, 1.35, "Cobertura tutorial baja");
+  else if (hasValue(row.tutor_activity_coverage) && parseNumber(row.tutor_activity_coverage) >= 0.75) addEvidence(evidence, 0.78, "Cobertura tutorial amplia");
+
+  return estimateFromEvidence(0.22, evidence);
+}
+
+function estimateCareerRisk(row, semesterPosterior) {
+  const evidence = [];
+  const semester = parseNumber(row.semester_number);
+  const failed = parseNumber(row.failed_previous_subjects);
+  const progress = parseNumber(row.program_progress_percent);
+  const load = parseNumber(row.academic_load);
+
+  if (failed >= 4) addEvidence(evidence, 2.4, "Cuatro o mas materias previas no aprobadas");
+  else if (failed >= 2) addEvidence(evidence, 1.6, "Dos o mas materias previas no aprobadas");
+  else if (failed === 0) addEvidence(evidence, 0.75, "Sin materias previas no aprobadas");
+
+  if (hasValue(row.program_progress_percent) && semester >= 6 && progress < 55) addEvidence(evidence, 2.1, "Avance de carrera bajo para el semestre cursado");
+  else if (hasValue(row.program_progress_percent) && semester >= 4 && progress < 35) addEvidence(evidence, 1.75, "Avance acumulado rezagado");
+  else if (hasValue(row.program_progress_percent) && progress >= 60) addEvidence(evidence, 0.78, "Avance de carrera consistente");
+
+  if (hasValue(row.academic_load) && load <= 1) addEvidence(evidence, 1.7, "Carga academica reducida");
+  else if (hasValue(row.academic_load) && load >= 4) addEvidence(evidence, 0.85, "Carga academica activa");
+
+  if (row.enrollment_status && row.enrollment_status !== "Regular") addEvidence(evidence, 2.0, "Estado de matricula requiere revision academica");
+  if (row.scholarship_status === "Beca activa") addEvidence(evidence, 0.85, "Beca activa registrada");
+  if (row.tutor_followup_signal === "Bajo") addEvidence(evidence, 1.35, "Acompanamiento tutorial bajo");
+  else if (row.tutor_followup_signal === "Alta") addEvidence(evidence, 0.85, "Acompanamiento tutorial alto");
+
+  if (semesterPosterior >= 0.7) addEvidence(evidence, 1.5, "Riesgo alto durante el semestre actual");
+  else if (semesterPosterior < 0.3) addEvidence(evidence, 0.85, "Riesgo bajo durante el semestre actual");
+
+  return estimateFromEvidence(0.16, evidence);
+}
+
+function convertGasSummary(row) {
+  const actions = parseNumber(row.actions ?? row.actions_registered);
+  const forums = parseNumber(row.forums ?? row.forum_posts);
+  const grades = parseNumber(row.grades ?? row.grade_cells_with_value);
+  const days = parseNumber(row.days_since_last_access);
+  const index = parseNumber(String(row.userId || row.user_id || "").replace(/\D/g, ""), 1);
+  const semesterNumber = parseNumber(row.semester_number, Math.max(1, Math.ceil(index / 4)));
+  const progressFallback = Math.min(80, semesterNumber * 12);
+  const base = {
     user_id: row.userId || row.user_id,
+    student_moodle_id: row.student_moodle_id || row.moodle_id || `MOODLE-STU-${String(index).padStart(2, "0")}`,
+    student_document_id: row.student_document_id || row.document_id || `DOC-DEMO-${String(index).padStart(2, "0")}`,
     name: row.name || "Estudiante",
-    email: row.email || "",
-    days_since_last_access: Number(row.days_since_last_access || 0),
-    last_access_text: row.last_access_text || "dato de muestra",
+    email: row.email || row.student_email || "",
+    cohort: row.cohort || (semesterNumber <= 2 ? "2026" : "2025"),
+    career: row.career || "Analitica de Big Data",
+    semester_number: semesterNumber,
+    enrollment_status: row.enrollment_status || "Regular",
+    academic_load: hasValue(row.academic_load) ? parseNumber(row.academic_load) : Math.max(1, Math.min(5, grades + 2)),
+    failed_previous_subjects: hasValue(row.failed_previous_subjects) ? parseNumber(row.failed_previous_subjects) : 0,
+    program_progress_percent: hasValue(row.program_progress_percent) ? parseNumber(row.program_progress_percent) : progressFallback,
+    scholarship_status: row.scholarship_status || "Sin beca registrada",
+    work_shift: row.work_shift || "Sin dato",
+    tutor_id: row.tutor_id || "TUT-DEMO-01",
+    tutor_name: row.tutor_name || "Docente Tutor 01",
+    tutor_email: row.tutor_email || "tutor01@example.invalid",
+    tutor_role: row.tutor_role || "Tutor academico",
+    tutor_actions_registered: parseNumber(row.tutor_actions_registered),
+    tutor_forum_replies: parseNumber(row.tutor_forum_replies),
+    tutor_feedback_count: hasValue(row.tutor_feedback_count) ? parseNumber(row.tutor_feedback_count) : null,
+    tutor_response_hours: hasValue(row.tutor_response_hours) ? parseNumber(row.tutor_response_hours) : null,
+    tutor_activity_coverage: hasValue(row.tutor_activity_coverage) ? parseNumber(row.tutor_activity_coverage) : null,
+    tutor_followup_signal: row.tutor_followup_signal || "Sin dato",
+    actions_registered: actions,
+    forum_posts: forums,
+    grade_cells_with_value: grades,
+    days_since_last_access: days,
+  };
+  const semesterFallback = estimateSemesterRisk(base);
+  const semesterPosterior = parseNumber(
+    row.semester_bayesian_posterior_probability ?? row.semester_desertion_probability ?? row.posterior ?? row.desertion_probability ?? row.bayesian_posterior_probability,
+    semesterFallback.posterior,
+  );
+  const careerFallback = estimateCareerRisk(base, semesterPosterior);
+  const semesterFactors = parseFactors(row.semester_desertion_risk_factors || row.semester_bayesian_evidence_factors).length
+    ? parseFactors(row.semester_desertion_risk_factors || row.semester_bayesian_evidence_factors)
+    : evidenceFactors(row).length ? evidenceFactors(row) : semesterFallback.factors;
+  const careerFactors = parseFactors(row.career_desertion_risk_factors || row.career_bayesian_evidence_factors).length
+    ? parseFactors(row.career_desertion_risk_factors || row.career_bayesian_evidence_factors)
+    : careerFallback.factors;
+  const careerPosterior = parseNumber(row.career_bayesian_posterior_probability ?? row.career_desertion_probability, careerFallback.posterior);
+  const followUp = parseBoolean(row.follow_up_alert) || semesterPosterior >= 0.5 || careerPosterior >= 0.5 || actions === 0 || grades === 0;
+  return {
+    ...base,
+    last_access_text: row.last_access_text || (days <= 1 ? "Ultimo dia" : `${days} dias`),
     actions_registered: actions,
     forum_posts: forums,
     messages_forum_registered: forums,
@@ -218,74 +419,135 @@ function convertGasSummary(row) {
     assignments_graded: grades > 0 ? 1 : 0,
     platform_level: row.platform_level || platformLevel(actions),
     evaluative_level: row.evaluative_level || evaluativeLevel(grades),
-    follow_up_alert: posterior >= 0.5 || actions === 0 || grades === 0,
-    desertion_probability: posterior,
-    desertion_risk_level: row.riskLevel || row.desertion_risk_level || riskLevel(posterior),
-    desertion_risk_factors: factors,
-    bayesian_prior_probability: Number(row.prior ?? row.bayesian_prior_probability ?? 0.2),
-    bayesian_posterior_probability: posterior,
-    bayesian_log_likelihood_ratio: Number(row.logLr ?? row.bayesian_log_likelihood_ratio ?? 0),
-    bayesian_evidence_factors: factors,
-    risk_model_version: MODEL_VERSION,
+    follow_up_alert: followUp,
+    semester_bayesian_prior_probability: parseNumber(row.semester_bayesian_prior_probability ?? row.prior ?? row.bayesian_prior_probability, semesterFallback.prior),
+    semester_bayesian_posterior_probability: semesterPosterior,
+    semester_bayesian_log_likelihood_ratio: parseNumber(row.semester_bayesian_log_likelihood_ratio ?? row.logLr ?? row.bayesian_log_likelihood_ratio, semesterFallback.logLr),
+    semester_desertion_probability: parseNumber(row.semester_desertion_probability, semesterPosterior),
+    semester_desertion_risk_level: row.semester_desertion_risk_level || row.riskLevel || row.desertion_risk_level || riskLevel(semesterPosterior),
+    semester_desertion_risk_factors: semesterFactors,
+    career_bayesian_prior_probability: parseNumber(row.career_bayesian_prior_probability, careerFallback.prior),
+    career_bayesian_posterior_probability: careerPosterior,
+    career_bayesian_log_likelihood_ratio: parseNumber(row.career_bayesian_log_likelihood_ratio, careerFallback.logLr),
+    career_desertion_probability: parseNumber(row.career_desertion_probability, careerPosterior),
+    career_desertion_risk_level: row.career_desertion_risk_level || riskLevel(careerPosterior),
+    career_desertion_risk_factors: careerFactors,
+    desertion_probability: semesterPosterior,
+    desertion_risk_level: row.riskLevel || row.desertion_risk_level || riskLevel(semesterPosterior),
+    desertion_risk_factors: semesterFactors,
+    bayesian_prior_probability: parseNumber(row.prior ?? row.bayesian_prior_probability, semesterFallback.prior),
+    bayesian_posterior_probability: semesterPosterior,
+    bayesian_log_likelihood_ratio: parseNumber(row.logLr ?? row.bayesian_log_likelihood_ratio, semesterFallback.logLr),
+    bayesian_evidence_factors: semesterFactors,
+    risk_model_version: row.risk_model_version || MODEL_VERSION,
   };
 }
 
 function buildLocalRows() {
   return [
-    ["demo-01", "Estudiante 01", 6, 1, 1, 3],
-    ["demo-02", "Estudiante 02", 11, 3, 3, 7],
-    ["demo-03", "Estudiante 03", 5, 2, 1, 32],
-    ["demo-04", "Estudiante 04", 0, 0, 0, 72],
-    ["demo-05", "Estudiante 05", 6, 1, 1, 49],
-    ["demo-06", "Estudiante 06", 2, 0, 0, 82],
-    ["demo-07", "Estudiante 07", 17, 3, 3, 3],
-    ["demo-08", "Estudiante 08", 6, 0, 0, 66],
-    ["demo-09", "Estudiante 09", 20, 2, 2, 7],
-    ["demo-10", "Estudiante 10", 10, 2, 0, 1],
-    ["demo-11", "Estudiante 11", 1, 0, 0, 64],
-    ["demo-12", "Estudiante 12", 2, 0, 0, 57],
-    ["demo-13", "Estudiante 13", 15, 1, 1, 15],
-    ["demo-14", "Estudiante 14", 18, 3, 3, 0],
-    ["demo-15", "Estudiante 15", 23, 5, 3, 2],
-    ["demo-16", "Estudiante 16", 13, 2, 2, 50],
-    ["demo-17", "Estudiante 17", 10, 0, 0, 68],
-    ["demo-18", "Estudiante 18", 7, 1, 1, 67],
-    ["demo-19", "Estudiante 19", 16, 3, 1, 3],
-    ["demo-20", "Estudiante 20", 0, 0, 0, 88],
-  ].map((item) => {
-    const actions = item[2];
-    const forums = item[3];
-    const grades = item[4];
-    const days = item[5];
-    const factors = [];
-    const lrs = [];
-    if (days >= 45) { factors.push("Ultimo acceso mayor o igual a 45 dias"); lrs.push(2.2); }
-    else if (days <= 7) { factors.push("Acceso reciente"); lrs.push(0.55); }
-    if (actions === 0) { factors.push("Sin actividad en plataforma"); lrs.push(2.8); }
-    else if (actions < 5) { factors.push("Baja actividad en plataforma"); lrs.push(1.7); }
-    else if (actions >= 15) { factors.push("Alta actividad en plataforma"); lrs.push(0.55); }
-    if (grades === 0) { factors.push("Sin evaluaciones registradas"); lrs.push(2.4); }
-    else if (grades >= 3) { factors.push("Evaluaciones registradas"); lrs.push(0.55); }
-    if (forums === 0) { factors.push("Sin participacion en foros"); lrs.push(1.35); }
-    else if (forums >= 3) { factors.push("Participacion frecuente en foros"); lrs.push(0.65); }
-    const prior = 0.2;
-    const likelihood = lrs.reduce((acc, value) => acc * value, 1);
-    const odds = (prior / (1 - prior)) * likelihood;
-    const posterior = odds / (1 + odds);
-    return convertGasSummary({
-      userId: item[0],
-      name: item[1],
-      actions,
-      forums,
-      grades,
-      days_since_last_access: days,
-      prior,
-      posterior,
-      logLr: Math.log(likelihood || 1),
-      riskLevel: riskLevel(posterior),
-      evidence: factors.join("; "),
-    });
-  });
+    demoStudent("demo-01", "Estudiante 01", 6, 1, 1, 3, 1, 0, 18, 12, 4, 1.0, "Alta"),
+    demoStudent("demo-02", "Estudiante 02", 11, 3, 3, 7, 2, 0, 32, 9, 5, 0.88, "Alta"),
+    demoStudent("demo-03", "Estudiante 03", 5, 2, 1, 32, 3, 1, 38, 5, 2, 0.63, "Media"),
+    demoStudent("demo-04", "Estudiante 04", 0, 0, 0, 72, 5, 4, 36, 1, 0, 0.22, "Bajo"),
+    demoStudent("demo-05", "Estudiante 05", 6, 1, 1, 49, 4, 2, 42, 3, 1, 0.43, "Media"),
+    demoStudent("demo-06", "Estudiante 06", 2, 0, 0, 82, 6, 5, 44, 1, 0, 0.18, "Bajo"),
+    demoStudent("demo-07", "Estudiante 07", 17, 3, 3, 3, 2, 0, 36, 10, 5, 0.92, "Alta"),
+    demoStudent("demo-08", "Estudiante 08", 6, 0, 0, 66, 5, 3, 47, 2, 0, 0.34, "Bajo"),
+    demoStudent("demo-09", "Estudiante 09", 20, 2, 2, 7, 3, 0, 54, 8, 4, 0.76, "Alta"),
+    demoStudent("demo-10", "Estudiante 10", 10, 2, 0, 1, 1, 1, 16, 6, 2, 0.58, "Media"),
+    demoStudent("demo-11", "Estudiante 11", 1, 0, 0, 64, 7, 4, 52, 1, 0, 0.25, "Bajo"),
+    demoStudent("demo-12", "Estudiante 12", 2, 0, 0, 57, 4, 2, 31, 2, 0, 0.3, "Bajo"),
+    demoStudent("demo-13", "Estudiante 13", 15, 1, 1, 15, 2, 0, 40, 7, 3, 0.78, "Alta"),
+    demoStudent("demo-14", "Estudiante 14", 18, 3, 3, 0, 1, 0, 20, 12, 6, 1.0, "Alta"),
+    demoStudent("demo-15", "Estudiante 15", 23, 5, 3, 2, 3, 0, 58, 13, 6, 0.94, "Alta"),
+    demoStudent("demo-16", "Estudiante 16", 13, 2, 2, 50, 6, 2, 62, 4, 2, 0.52, "Media"),
+    demoStudent("demo-17", "Estudiante 17", 10, 0, 0, 68, 7, 5, 48, 2, 0, 0.27, "Bajo"),
+    demoStudent("demo-18", "Estudiante 18", 7, 1, 1, 67, 5, 3, 45, 3, 1, 0.38, "Media"),
+    demoStudent("demo-19", "Estudiante 19", 16, 3, 1, 3, 2, 0, 34, 8, 4, 0.84, "Alta"),
+    demoStudent("demo-20", "Estudiante 20", 0, 0, 0, 88, 8, 6, 51, 0, 0, 0.14, "Bajo"),
+  ].map(convertGasSummary);
+}
+
+function demoStudent(id, name, actions, forums, grades, days, semester, failed, progress, tutorActions, tutorFeedback, coverage, followupSignal) {
+  const index = parseNumber(String(id).replace(/\D/g, ""), 1);
+  const tutorIndex = ((index - 1) % 3) + 1;
+  const padded = String(index).padStart(2, "0");
+  return {
+    user_id: id,
+    student_moodle_id: `MOODLE-STU-${padded}`,
+    student_document_id: `DOC-DEMO-${padded}`,
+    name,
+    email: `estudiante${padded}@example.invalid`,
+    cohort: semester <= 2 ? "2026" : semester <= 5 ? "2025" : "2024",
+    career: index % 2 === 0 ? "Licenciatura en Ciencia de Datos" : "Analitica de Big Data",
+    semester_number: semester,
+    enrollment_status: days >= 80 || failed >= 5 ? "Revision academica" : "Regular",
+    academic_load: actions === 0 ? 1 : Math.max(1, Math.min(5, grades + 2)),
+    failed_previous_subjects: failed,
+    program_progress_percent: progress,
+    scholarship_status: index % 4 === 0 ? "Beca activa" : "Sin beca registrada",
+    work_shift: index % 3 === 0 ? "Nocturno" : "Diurno",
+    tutor_id: `TUT-DEMO-${String(tutorIndex).padStart(2, "0")}`,
+    tutor_name: `Docente Tutor ${String(tutorIndex).padStart(2, "0")}`,
+    tutor_email: `tutor${String(tutorIndex).padStart(2, "0")}@example.invalid`,
+    tutor_role: tutorIndex === 1 ? "Docente responsable" : "Tutor academico",
+    tutor_actions_registered: tutorActions,
+    tutor_forum_replies: Math.max(0, Math.round(tutorActions / 4)),
+    tutor_feedback_count: tutorFeedback,
+    tutor_response_hours: followupSignal === "Alta" ? 18 : followupSignal === "Media" ? 42 : 96,
+    tutor_activity_coverage: coverage,
+    tutor_followup_signal: followupSignal,
+    actions_registered: actions,
+    forum_posts: forums,
+    grade_cells_with_value: grades,
+    days_since_last_access: days,
+  };
+}
+
+function buildTutorProfilesFromSummaries(summaries) {
+  const grouped = summaries.reduce((acc, row) => {
+    const key = row.tutor_id || "SIN-TUTOR";
+    if (!acc[key]) {
+      acc[key] = {
+        tutor_id: key,
+        tutor_name: row.tutor_name || "Tutor sin dato",
+        tutor_email: row.tutor_email || "",
+        tutor_role: row.tutor_role || "Tutor",
+        assigned_students: 0,
+        tutor_actions_registered: 0,
+        tutor_forum_replies: 0,
+        tutor_feedback_count: 0,
+        tutor_response_hours: 0,
+        tutor_activity_coverage: 0,
+        tutor_followup_signal: row.tutor_followup_signal || "Sin dato",
+      };
+    }
+    acc[key].assigned_students += 1;
+    acc[key].tutor_actions_registered += parseNumber(row.tutor_actions_registered);
+    acc[key].tutor_forum_replies += parseNumber(row.tutor_forum_replies);
+    acc[key].tutor_feedback_count += parseNumber(row.tutor_feedback_count);
+    acc[key].tutor_response_hours += parseNumber(row.tutor_response_hours);
+    acc[key].tutor_activity_coverage += parseNumber(row.tutor_activity_coverage);
+    return acc;
+  }, {});
+  return Object.values(grouped).map((tutor) => ({
+    ...tutor,
+    tutor_response_hours: tutor.assigned_students ? tutor.tutor_response_hours / tutor.assigned_students : 0,
+    tutor_activity_coverage: tutor.assigned_students ? tutor.tutor_activity_coverage / tutor.assigned_students : 0,
+  }));
+}
+
+function buildTutorSummaryFromProfiles(summaries, tutorProfiles) {
+  const actions = tutorProfiles.reduce((sum, row) => sum + parseNumber(row.tutor_actions_registered), 0);
+  const forums = tutorProfiles.reduce((sum, row) => sum + parseNumber(row.tutor_forum_replies), 0);
+  const coverage = summaries.length ? average(summaries, (row) => row.tutor_activity_coverage) : 0;
+  return {
+    active_tutors: tutorProfiles.length,
+    actions_registered: actions,
+    forum_posts: forums,
+    activity_coverage: coverage,
+    participation_level: actions >= 120 && coverage >= 0.6 ? "Alta" : actions >= 45 || coverage >= 0.35 ? "Media" : actions > 0 ? "Baja" : "Sin evidencia",
+  };
 }
 
 function normalizeReport(report, source) {
@@ -295,6 +557,20 @@ function normalizeReport(report, source) {
   const now = new Date().toISOString();
   const evidenceFiles = report?.evidence_files || [];
   const reportFiles = report?.files || [];
+  const tutorProfiles = (report?.tutor_profiles || buildTutorProfilesFromSummaries(summaries)).map((row) => ({
+    tutor_id: row.tutor_id || "SIN-TUTOR",
+    tutor_name: row.tutor_name || "Tutor sin dato",
+    tutor_email: row.tutor_email || "",
+    tutor_role: row.tutor_role || "Tutor",
+    assigned_students: parseNumber(row.assigned_students),
+    tutor_actions_registered: parseNumber(row.tutor_actions_registered),
+    tutor_forum_replies: parseNumber(row.tutor_forum_replies),
+    tutor_feedback_count: parseNumber(row.tutor_feedback_count),
+    tutor_response_hours: parseNumber(row.tutor_response_hours),
+    tutor_activity_coverage: parseNumber(row.tutor_activity_coverage),
+    tutor_followup_signal: row.tutor_followup_signal || "Sin dato",
+  }));
+  const tutorSummary = report?.tutor_summary || buildTutorSummaryFromProfiles(summaries, tutorProfiles);
   return {
     run_id: report?.runId || report?.run_id || `${source}-demo-${now.slice(0, 10)}`,
     course_title: report?.courseTitle || report?.course_title || "Analitica de Big Data - tablero publico",
@@ -310,17 +586,12 @@ function normalizeReport(report, source) {
       { activity_name: "Entrega primer parcial", action: "submitted", count: 7 },
       { activity_name: "Accesos a materiales", action: "viewed", count: Math.max(1, totalActions - totalForums) },
     ],
-    tutor_summary: {
-      active_tutors: 1,
-      actions_registered: 42,
-      forum_posts: 9,
-      activity_coverage: 0.82,
-      participation_level: "Alta",
-    },
-    tutor_activity_summary: [
-      { activity_name: "Seguimiento semanal", action: "reviewed", count: 20 },
-      { activity_name: "Mensajes personalizados", action: "sent", count: 8 },
-      { activity_name: "Foro novedades", action: "posted", count: 2 },
+    tutor_profiles: tutorProfiles,
+    tutor_summary: tutorSummary,
+    tutor_activity_summary: report?.tutor_activity_summary || [
+      { activity_name: "Acciones tutoriales identificadas", action: "registered", count: tutorSummary.actions_registered },
+      { activity_name: "Retroalimentaciones a estudiantes", action: "feedback", count: tutorProfiles.reduce((sum, row) => sum + row.tutor_feedback_count, 0) },
+      { activity_name: "Foros o mensajes del tutor", action: "reply", count: tutorSummary.forum_posts },
     ],
     files: evidenceFiles.length || reportFiles.length
       ? [...evidenceFiles, ...reportFiles]
@@ -419,7 +690,7 @@ function runGasExtraction(endpoint = GAS_REPORT_URL) {
 }
 
 function riskMatches(row, filter) {
-  const level = String(row.desertion_risk_level || "").toLowerCase();
+  const level = String(activeRiskLevel(row) || "").toLowerCase();
   if (filter === "all") return true;
   if (filter === "critical-high") return ["critico", "alto"].includes(level);
   if (filter === "critical") return level === "critico";
@@ -433,7 +704,18 @@ function filteredSummaries() {
   const rows = state.report?.summaries || [];
   const query = els.filters.search.value.trim().toLowerCase();
   const filtered = rows.filter((row) => {
-    const haystack = `${row.name} ${row.email} ${row.user_id}`.toLowerCase();
+    const haystack = [
+      row.name,
+      row.email,
+      row.user_id,
+      row.student_moodle_id,
+      row.student_document_id,
+      row.career,
+      row.cohort,
+      row.tutor_name,
+      row.tutor_email,
+      row.tutor_id,
+    ].join(" ").toLowerCase();
     return (
       (!query || haystack.includes(query)) &&
       riskMatches(row, els.filters.risk.value) &&
@@ -495,10 +777,10 @@ function renderScatter(rows) {
   rows.forEach((row) => {
     const point = document.createElement("button");
     point.type = "button";
-    point.className = `scatter-point ${labelClass(row.desertion_risk_level)}`;
+    point.className = `scatter-point ${labelClass(activeRiskLevel(row))}`;
     point.style.left = `${Math.min(96, Math.max(4, (row.actions_registered / maxActions) * 92 + 4))}%`;
     point.style.top = `${96 - Math.min(92, Math.max(4, (row.grade_cells_with_value / maxGrades) * 92))}%`;
-    point.title = `${row.name} | acciones ${row.actions_registered} | evaluaciones ${row.grade_cells_with_value} | riesgo ${probability(row.desertion_probability)}`;
+    point.title = `${row.name} | acciones ${row.actions_registered} | evaluaciones ${row.grade_cells_with_value} | ${activeRiskConfig().shortLabel} ${probability(activeRiskProbability(row))}`;
     point.addEventListener("click", () => selectStudent(row));
     plot.appendChild(point);
   });
@@ -507,7 +789,7 @@ function renderScatter(rows) {
 
 function probabilityBands(rows) {
   return rows.reduce((acc, row) => {
-    const value = Number(row.desertion_probability || 0);
+    const value = activeRiskProbability(row);
     if (value >= 0.7) acc[">= 70%"] += 1;
     else if (value >= 0.5) acc["50% - 69%"] += 1;
     else if (value >= 0.3) acc["30% - 49%"] += 1;
@@ -533,15 +815,17 @@ function renderActivityList(target, rows) {
 
 function renderDashboard() {
   const report = state.report;
+  els.riskModeButtons.forEach((button) => button.classList.toggle("active", button.dataset.riskMode === state.riskMode));
   const allRows = report.summaries;
   const rows = filteredSummaries();
   const totalActions = rows.reduce((sum, row) => sum + row.actions_registered, 0);
   const forumPosts = rows.reduce((sum, row) => sum + row.forum_posts, 0);
   const alerts = rows.filter((row) => row.follow_up_alert).length;
-  const highRisk = rows.filter((row) => ["Critico", "Alto"].includes(row.desertion_risk_level)).length;
+  const highRisk = rows.filter((row) => ["Critico", "Alto"].includes(activeRiskLevel(row))).length;
   const graded = rows.filter((row) => row.grade_cells_with_value > 0).length;
-  const avgRisk = average(rows, (row) => row.desertion_probability);
+  const avgRisk = average(rows, activeRiskProbability);
   const noEvidence = rows.filter((row) => row.platform_level === "Sin evidencia" || row.evaluative_level === "Sin evaluaciones").length;
+  const mode = activeRiskConfig();
 
   els.courseTitle.textContent = report.course_title;
   els.reportRunId.textContent = report.run_id;
@@ -555,13 +839,18 @@ function renderDashboard() {
     kpi("Foros", number(forumPosts), "intervenciones"),
     kpi("Con evaluacion", number(graded), "con evidencia", "good"),
     kpi("Alertas", number(alerts), "requieren seguimiento", alerts ? "warn" : "good"),
+    kpi("Modalidad", mode.shortLabel, mode.description),
     kpi("Riesgo medio", probability(avgRisk), "posterior promedio", avgRisk >= 0.5 ? "warn" : "good"),
     kpi("Riesgo alto", number(highRisk), "critico o alto", highRisk ? "bad" : "good"),
     kpi("Sin evidencia", number(noEvidence), "verificacion tutorial", noEvidence ? "warn" : "good"),
     kpi("Fuente", state.source === "gas" ? "GAS" : "Local", "modo de datos", state.source === "gas" ? "good" : "warn"),
   );
 
-  const riskDist = distribution(rows, "desertion_risk_level");
+  const riskDist = rows.reduce((acc, row) => {
+    const level = activeRiskLevel(row) || "Sin dato";
+    acc[level] = (acc[level] || 0) + 1;
+    return acc;
+  }, {});
   els.platformTotal.textContent = number(rows.length);
   els.evaluativeTotal.textContent = number(rows.length);
   els.riskDonutTotal.textContent = number(rows.length);
@@ -582,11 +871,17 @@ function renderDashboard() {
 
 function renderRisk() {
   const rows = filteredSummaries();
-  const riskDist = distribution(rows, "desertion_risk_level");
+  const mode = activeRiskConfig();
+  const riskDist = rows.reduce((acc, row) => {
+    const level = activeRiskLevel(row) || "Sin dato";
+    acc[level] = (acc[level] || 0) + 1;
+    return acc;
+  }, {});
   const high = (riskDist.Critico || 0) + (riskDist.Alto || 0);
   els.riskTotal.textContent = number(rows.length);
   els.riskHighCount.textContent = number(high);
   els.probabilityBandTotal.textContent = number(rows.length);
+  if (els.activeRiskMode) els.activeRiskMode.textContent = mode.label;
   renderBars(els.riskBars, riskDist, ["Critico", "Alto", "Medio", "Bajo", "Sin dato"]);
   renderBars(els.probabilityBands, probabilityBands(rows), [">= 70%", "50% - 69%", "30% - 49%", "< 30%"]);
   renderModelKpis(rows);
@@ -595,12 +890,14 @@ function renderRisk() {
 }
 
 function renderModelKpis(rows) {
-  const avgPosterior = average(rows, (row) => row.bayesian_posterior_probability);
-  const avgPrior = average(rows, (row) => row.bayesian_prior_probability);
-  const maxPosterior = maxValue(rows, (row) => row.bayesian_posterior_probability);
-  const evidenceItems = rows.reduce((sum, row) => sum + row.bayesian_evidence_factors.length, 0);
+  const mode = activeRiskConfig();
+  const avgPosterior = average(rows, activePosterior);
+  const avgPrior = average(rows, activePrior);
+  const maxPosterior = maxValue(rows, activePosterior);
+  const evidenceItems = rows.reduce((sum, row) => sum + activeEvidenceFactors(row).length, 0);
   els.modelKpis.replaceChildren(
     kpi("Modelo", MODEL_VERSION, "version publica"),
+    kpi("Modalidad", mode.shortLabel, mode.description),
     kpi("Prior medio", probability(avgPrior), "antes de evidencia"),
     kpi("Posterior medio", probability(avgPosterior), "riesgo actual"),
     kpi("Maximo posterior", probability(maxPosterior), "caso mas critico", maxPosterior >= 0.7 ? "bad" : maxPosterior >= 0.5 ? "warn" : "good"),
@@ -610,17 +907,17 @@ function renderModelKpis(rows) {
 
 function renderEvidenceTable(rows) {
   els.evidenceTable.replaceChildren();
-  const visible = [...rows].sort((a, b) => b.desertion_probability - a.desertion_probability).slice(0, 12);
+  const visible = [...rows].sort((a, b) => activeRiskProbability(b) - activeRiskProbability(a)).slice(0, 12);
   els.evidenceCount.textContent = number(visible.length);
   visible.forEach((row) => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "evidence-row";
     item.innerHTML = `
-      <span class="student-main"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.bayesian_evidence_factors.slice(0, 3).join("; "), "Sin factores")}</small></span>
-      <span><small>prior</small><strong>${probability(row.bayesian_prior_probability)}</strong></span>
-      <span><small>posterior</small><strong>${probability(row.bayesian_posterior_probability)}</strong></span>
-      <span><small>log LR</small><strong>${escapeHtml(row.bayesian_log_likelihood_ratio.toFixed(2))}</strong></span>
+      <span class="student-main"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(evidenceLabel(activeEvidenceFactors(row)))}</small></span>
+      <span><small>prior</small><strong>${probability(activePrior(row))}</strong></span>
+      <span><small>posterior</small><strong>${probability(activePosterior(row))}</strong></span>
+      <span><small>log LR</small><strong>${escapeHtml(activeLogLikelihoodRatio(row).toFixed(2))}</strong></span>
     `;
     item.addEventListener("click", () => selectStudent(row));
     els.evidenceTable.appendChild(item);
@@ -629,14 +926,14 @@ function renderEvidenceTable(rows) {
 
 function renderRiskTable(rows) {
   els.riskTable.replaceChildren();
-  [...rows].sort((a, b) => b.desertion_probability - a.desertion_probability).forEach((row) => {
+  [...rows].sort((a, b) => activeRiskProbability(b) - activeRiskProbability(a)).forEach((row) => {
     const item = document.createElement("button");
     item.type = "button";
-    item.className = `risk-row ${labelClass(row.desertion_risk_level)}`;
+    item.className = `risk-row ${labelClass(activeRiskLevel(row))}`;
     item.innerHTML = `
-      <span class="student-main"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.desertion_risk_factors.join("; "), "Sin factores criticos")}</small></span>
-      <strong>${probability(row.desertion_probability)}</strong>
-      <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml(row.desertion_risk_level)}</span>
+      <span class="student-main"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(activeRiskFactors(row).join("; "), "Sin factores criticos")}</small></span>
+      <strong>${probability(activeRiskProbability(row))}</strong>
+      <span class="pill ${labelClass(activeRiskLevel(row))}">${escapeHtml(activeRiskLevel(row))}</span>
     `;
     item.addEventListener("click", () => selectStudent(row));
     els.riskTable.appendChild(item);
@@ -648,27 +945,27 @@ function renderStudents() {
   const query = els.studentSearch.value.trim().toLowerCase();
   const filter = els.studentFilter.value;
   const filtered = rows.filter((row) => {
-    const haystack = `${row.name} ${row.user_id}`.toLowerCase();
+    const haystack = `${row.name} ${row.user_id} ${row.student_moodle_id} ${row.student_document_id} ${row.tutor_name} ${row.career}`.toLowerCase();
     return (!query || haystack.includes(query)) &&
       (filter === "all" ||
-      (filter === "high-risk" && ["Critico", "Alto"].includes(row.desertion_risk_level)) ||
+      (filter === "high-risk" && ["Critico", "Alto"].includes(activeRiskLevel(row))) ||
       (filter === "alerts" && row.follow_up_alert) ||
       (filter === "without-evidence" && row.platform_level === "Sin evidencia") ||
       (filter === "without-grades" && row.evaluative_level === "Sin evaluaciones"));
   });
   els.studentCount.textContent = `${filtered.length}/${rows.length}`;
   els.studentsTable.replaceChildren();
-  filtered.sort((a, b) => b.desertion_probability - a.desertion_probability).forEach((row) => {
+  filtered.sort((a, b) => activeRiskProbability(b) - activeRiskProbability(a)).forEach((row) => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = `student-row ${row.follow_up_alert ? "needs-attention" : ""}`;
     item.dataset.key = studentKey(row);
     item.innerHTML = `
-      <span class="student-main"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.user_id)}</small></span>
+      <span class="student-main"><strong>${escapeHtml(row.name)}</strong><small>${escapeHtml(row.student_moodle_id || row.user_id)} | ${escapeHtml(row.student_document_id || "sin documento")}</small></span>
       <span>${number(row.actions_registered)}</span>
       <span>${escapeHtml(row.platform_level)}</span>
       <span>${number(row.grade_cells_with_value)}</span>
-      <span class="pill ${labelClass(row.desertion_risk_level)}">${probability(row.desertion_probability)}</span>
+      <span class="pill ${labelClass(activeRiskLevel(row))}">${probability(activeRiskProbability(row))}</span>
     `;
     item.addEventListener("click", () => selectStudent(row));
     els.studentsTable.appendChild(item);
@@ -683,29 +980,71 @@ function selectStudent(row) {
   renderStudents();
 }
 
+function detailPairs(pairs) {
+  return pairs.map(([label, value]) => `<span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>`).join("");
+}
+
 function renderStudentDetail(row) {
   if (!row) {
     els.detailAlert.textContent = "--";
     els.studentDetail.innerHTML = "<p>No hay estudiantes con los filtros activos.</p>";
     return;
   }
+  const mode = activeRiskConfig();
+  const activeFactors = activeEvidenceFactors(row);
   els.detailAlert.textContent = row.follow_up_alert ? "Seguimiento" : "Sin alerta";
   els.detailAlert.className = `pill ${row.follow_up_alert ? "warn" : "good"}`;
   els.studentDetail.innerHTML = `
-    <h3>${escapeHtml(row.name)}</h3>
+    <div class="detail-name">
+      <strong>${escapeHtml(row.name)}</strong>
+      <span>${escapeHtml(row.student_moodle_id || row.user_id)} | ${escapeHtml(row.student_document_id || "sin documento")} | ${escapeHtml(row.email || "sin correo")}</span>
+    </div>
     <div class="student-badges">
-      <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml(row.desertion_risk_level)} - ${probability(row.desertion_probability)}</span>
+      <span class="pill ${labelClass(row.semester_desertion_risk_level)}">Semestre ${escapeHtml(row.semester_desertion_risk_level)} - ${probability(row.semester_desertion_probability)}</span>
+      <span class="pill ${labelClass(row.career_desertion_risk_level)}">Carrera ${escapeHtml(row.career_desertion_risk_level)} - ${probability(row.career_desertion_probability)}</span>
+      <span class="pill muted">Activo: ${escapeHtml(mode.shortLabel)}</span>
       <span class="pill muted">${escapeHtml(row.platform_level)}</span>
       <span class="pill muted">${escapeHtml(row.evaluative_level)}</span>
     </div>
+    <h4>Identificacion y trayectoria</h4>
     <div class="detail-grid">
-      <span>Acciones Moodle</span><strong>${number(row.actions_registered)}</strong>
-      <span>Foros</span><strong>${number(row.forum_posts)}</strong>
-      <span>Evaluaciones</span><strong>${number(row.grade_cells_with_value)}</strong>
-      <span>Ultimo acceso</span><strong>${number(row.days_since_last_access)} dias</strong>
+      ${detailPairs([
+        ["ID Moodle", row.student_moodle_id || row.user_id || "sin dato"],
+        ["Documento", row.student_document_id || "sin dato"],
+        ["Carrera", row.career || "sin dato"],
+        ["Cohorte", row.cohort || "sin dato"],
+        ["Semestre", row.semester_number || "sin dato"],
+        ["Estado matricula", row.enrollment_status || "sin dato"],
+        ["Carga academica", row.academic_load || "sin dato"],
+        ["Previas no aprobadas", row.failed_previous_subjects ?? "sin dato"],
+        ["Avance carrera", `${number(row.program_progress_percent)}%`],
+        ["Turno", row.work_shift || "sin dato"],
+      ])}
     </div>
-    <h4>Factores auditables</h4>
-    <ul>${row.bayesian_evidence_factors.map((factor) => `<li>${escapeHtml(factor)}</li>`).join("") || "<li>Sin factores registrados</li>"}</ul>
+    <h4>Actividad Moodle</h4>
+    <div class="detail-grid">
+      ${detailPairs([
+        ["Acciones Moodle", number(row.actions_registered)],
+        ["Foros", number(row.forum_posts)],
+        ["Evaluaciones", number(row.grade_cells_with_value)],
+        ["Ultimo acceso", `${number(row.days_since_last_access)} dias`],
+      ])}
+    </div>
+    <h4>Tutor asignado</h4>
+    <div class="detail-grid">
+      ${detailPairs([
+        ["Tutor", row.tutor_name || "sin dato"],
+        ["ID tutor", row.tutor_id || "sin dato"],
+        ["Rol", row.tutor_role || "sin dato"],
+        ["Correo tutor", row.tutor_email || "sin dato"],
+        ["Acciones tutor", number(row.tutor_actions_registered)],
+        ["Retroalimentaciones", number(row.tutor_feedback_count)],
+        ["Respuesta promedio", `${number(row.tutor_response_hours)} h`],
+        ["Cobertura tutor", probability(row.tutor_activity_coverage)],
+      ])}
+    </div>
+    <h4>Factores bayesianos (${escapeHtml(mode.shortLabel)})</h4>
+    <ul>${activeFactors.map((factor) => `<li>${escapeHtml(factor)}</li>`).join("") || "<li>Sin factores registrados</li>"}</ul>
   `;
 }
 
@@ -719,6 +1058,34 @@ function renderTutor() {
     kpi("Foros", number(summary.forum_posts), "mensajes"),
     kpi("Cobertura", probability(summary.activity_coverage), "actividades revisadas", "good"),
   );
+  if (els.tutorRoster && els.tutorRosterCount) {
+    const tutors = state.report.tutor_profiles || [];
+    els.tutorRosterCount.textContent = number(tutors.length);
+    els.tutorRoster.replaceChildren();
+    tutors.forEach((tutor) => {
+      const item = document.createElement("article");
+      item.className = "tutor-card";
+      item.innerHTML = `
+        <div class="student-main">
+          <strong>${escapeHtml(tutor.tutor_name)}</strong>
+          <small>${escapeHtml(tutor.tutor_id)} | ${escapeHtml(tutor.tutor_email || "sin correo")}</small>
+        </div>
+        <div class="detail-grid single">
+          ${detailPairs([
+            ["Rol", tutor.tutor_role || "sin dato"],
+            ["Estudiantes", number(tutor.assigned_students)],
+            ["Acciones", number(tutor.tutor_actions_registered)],
+            ["Foros", number(tutor.tutor_forum_replies)],
+            ["Feedback", number(tutor.tutor_feedback_count)],
+            ["Respuesta", `${number(tutor.tutor_response_hours)} h`],
+            ["Cobertura", probability(tutor.tutor_activity_coverage)],
+            ["Senal", tutor.tutor_followup_signal || "sin dato"],
+          ])}
+        </div>
+      `;
+      els.tutorRoster.appendChild(item);
+    });
+  }
   els.tutorActivityCount.textContent = number(state.report.tutor_activity_summary.length);
   renderActivityList(els.tutorActivityBars, state.report.tutor_activity_summary);
 }
@@ -738,6 +1105,7 @@ function renderRuns() {
   const runs = [
     { run_id: state.report.run_id, status: "done", message: "Reporte publico cargado" },
     { run_id: "app-version", status: "done", message: `Version ${APP_VERSION} | build ${APP_BUILD_DATE}` },
+    { run_id: "risk-mode", status: "done", message: `Modalidad activa: ${activeRiskConfig().description}` },
     { run_id: "gas-webapp", status: state.source === "gas" ? "done" : "fallback", message: state.source === "gas" ? "JSONP GAS disponible" : "Se uso muestra local" },
     { run_id: "google-sheets", status: "done", message: `Hoja ${state.report.spreadsheet_id || "configurada"}` },
     { run_id: "google-drive", status: state.report.drive_folder_url ? "done" : "pending", message: state.report.drive_folder_url ? "Carpeta de evidencias configurada" : "Configurar folder id en GAS" },
@@ -776,6 +1144,7 @@ function renderAudit() {
     ["2026-06-11", "Hoja en linea enlazada desde el tablero"],
     ["2026-06-11", "Drive preparado para evidencias JSON desde GAS"],
     ["2026-06-11", `Control visible de version ${APP_VERSION}`],
+    ["2026-06-11", "Modelo con modalidades semestre y carrera e identificadores anonimizados"],
   ];
   els.auditCount.textContent = number(rows.length);
   els.auditTable.replaceChildren();
@@ -798,6 +1167,13 @@ function clearFilters() {
   els.filters.platform.value = "all";
   els.filters.evaluative.value = "all";
   els.filters.alertOnly.checked = false;
+  renderDashboard();
+}
+
+function setRiskMode(mode) {
+  if (!RISK_MODES[mode]) return;
+  state.riskMode = mode;
+  els.riskModeButtons.forEach((button) => button.classList.toggle("active", button.dataset.riskMode === mode));
   renderDashboard();
 }
 
@@ -929,6 +1305,7 @@ async function init() {
   els.filters.risk.addEventListener("change", renderDashboard);
   els.filters.platform.addEventListener("change", renderDashboard);
   els.filters.evaluative.addEventListener("change", renderDashboard);
+  els.riskModeButtons.forEach((button) => button.addEventListener("click", () => setRiskMode(button.dataset.riskMode)));
   els.filters.clear.addEventListener("click", clearFilters);
   els.studentSearch.addEventListener("input", renderStudents);
   els.studentFilter.addEventListener("change", renderStudents);
