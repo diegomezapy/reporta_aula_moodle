@@ -1,0 +1,10 @@
+{
+  "name": "Reporta Aula Moodle",
+  "short_name": "Reporta Moodle",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f2",
+  "theme_color": "#246f5c",
+  "icons": []
+}

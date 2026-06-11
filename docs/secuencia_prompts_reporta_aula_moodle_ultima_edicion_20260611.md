@@ -108,10 +108,12 @@ No debe usarse este archivo para guardar secretos. Los secretos deben permanecer
 
 45. Guardar obligatoriamente esta secuencia de prompts en un archivo claramente identificado por proyecto y ultima fecha de edicion.
 
+46. Al confirmar que la muestra GAS funciona, publicar en GitHub Pages la version extensa y completa de la app, con todo lo previsto inicialmente, y avanzar hasta commit y push.
+
 ## Estado al 2026-06-11
 
 - Muestra GAS publica funcional creada y verificada.
-- GitHub Pages corregido para evitar `File not found`.
+- GitHub Pages corregido para evitar `File not found` y actualizado para abrir directamente la app completa.
 - Backend FastAPI preparado para hosting persistente, pero todavia depende de proveedor con secretos configurados.
 - Tunel temporal usado solo como apoyo de prueba, no como despliegue productivo.
 - Integracion real con Google Sheets queda pendiente para autorizacion y transferencia institucional.

@@ -3,262 +3,331 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#246f5c" />
     <title>Reporta Aula Moodle</title>
-    <link rel="stylesheet" href="app/static/styles.css?v=20260611-gas-loader" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-gas-full" />
   </head>
   <body>
-    <main id="boot" class="shell">
+    <main class="shell">
       <header class="topbar">
         <div>
           <h1>Reporta Aula Moodle</h1>
-          <p>Cargando tablero...</p>
+          <p id="sheetTarget">GitHub Pages + GAS publico, listo para migrar a cuenta institucional.</p>
         </div>
-        <span class="pill muted">GitHub Pages</span>
+        <div class="top-actions">
+          <span id="authState" class="pill muted">Demo anonima</span>
+          <span id="googleState" class="pill">GAS activo</span>
+          <button id="refreshRuns" class="icon-button" title="Actualizar" aria-label="Actualizar">R</button>
+        </div>
       </header>
+
+      <nav class="tabs" aria-label="Vistas">
+        <button class="tab active" type="button" data-tab="dashboard">Tablero</button>
+        <button class="tab" type="button" data-tab="risk">Riesgo</button>
+        <button class="tab" type="button" data-tab="students">Estudiantes</button>
+        <button class="tab" type="button" data-tab="tutor">Tutoria</button>
+        <button class="tab" type="button" data-tab="automation">Automatizacion</button>
+        <button class="tab" type="button" data-tab="extract">Extraccion</button>
+        <button class="tab" type="button" data-tab="runs">Corridas</button>
+        <button class="tab" type="button" data-tab="audit">Auditoria</button>
+      </nav>
+
+      <section class="filter-band" aria-label="Filtros globales">
+        <div class="filter-heading">
+          <strong>Filtros</strong>
+          <span id="filterCount" class="pill muted">0/0</span>
+        </div>
+        <label>
+          Buscar
+          <input id="globalSearch" type="search" placeholder="Nombre o ID" />
+        </label>
+        <label>
+          Riesgo
+          <select id="riskFilter">
+            <option value="all">Todos</option>
+            <option value="critical-high">Critico y alto</option>
+            <option value="critical">Critico</option>
+            <option value="high">Alto</option>
+            <option value="medium">Medio</option>
+            <option value="low">Bajo</option>
+          </select>
+        </label>
+        <label>
+          Plataforma
+          <select id="platformFilter">
+            <option value="all">Todas</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baja">Baja</option>
+            <option value="Sin evidencia">Sin evidencia</option>
+          </select>
+        </label>
+        <label>
+          Evaluacion
+          <select id="evaluativeFilter">
+            <option value="all">Todas</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baja">Baja</option>
+            <option value="Sin evaluaciones">Sin evaluaciones</option>
+          </select>
+        </label>
+        <label class="checkline block slim">
+          <input id="alertOnly" type="checkbox" />
+          Solo alertas
+        </label>
+        <button id="clearFilters" class="secondary" type="button">Limpiar</button>
+      </section>
+
+      <section id="dashboardView" class="view active">
+        <section class="dashboard-head">
+          <div class="panel course-panel">
+            <div class="panel-head">
+              <h2 id="courseTitle">Cargando reporte</h2>
+              <span id="reportRunId" class="pill muted">--</span>
+            </div>
+            <div class="course-meta">
+              <span id="courseId">Curso --</span>
+              <span id="generatedAt">--</span>
+              <span id="moodleBase">Moodle</span>
+            </div>
+          </div>
+          <section class="status-card">
+            <div>
+              <span id="currentStatus" class="pill muted">Cargando</span>
+              <p id="statusMessage">Conectando la publicacion GitHub Pages con la muestra GAS.</p>
+            </div>
+          </section>
+        </section>
+
+        <section id="kpiGrid" class="kpi-grid"></section>
+
+        <section class="analytics-grid">
+          <article class="panel risk-donut-panel">
+            <div class="panel-head">
+              <h2>Semaforo De Riesgo</h2>
+              <span id="riskDonutTotal" class="pill muted">0</span>
+            </div>
+            <div id="riskDonut" class="donut-wrap"></div>
+            <div id="riskDonutLegend" class="legend-grid"></div>
+          </article>
+
+          <article class="panel scatter-panel">
+            <div class="panel-head">
+              <h2>Participacion Vs Evaluacion</h2>
+              <span id="scatterTotal" class="pill muted">0</span>
+            </div>
+            <div id="scatterPlot" class="scatter-plot"></div>
+            <div class="axis-copy">
+              <span>Acciones Moodle</span>
+              <span>Evaluaciones</span>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Actividad En Plataforma</h2>
+              <span id="platformTotal" class="pill muted">0</span>
+            </div>
+            <div id="platformBars" class="bar-stack"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Participacion Evaluativa</h2>
+              <span id="evaluativeTotal" class="pill muted">0</span>
+            </div>
+            <div id="evaluativeBars" class="bar-stack"></div>
+          </article>
+
+          <article class="panel activity-panel">
+            <div class="panel-head">
+              <h2>Actividades Con Mas Evidencia</h2>
+              <span id="activityCount" class="pill muted">0</span>
+            </div>
+            <div id="activityBars" class="activity-bars"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="riskView" class="view">
+        <section id="modelKpis" class="kpi-grid compact-wide"></section>
+        <section class="risk-layout">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Probabilidad De Desercion</h2>
+              <span id="riskTotal" class="pill muted">0</span>
+            </div>
+            <div id="riskBars" class="bar-stack"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Bandas De Probabilidad</h2>
+              <span id="probabilityBandTotal" class="pill muted">0</span>
+            </div>
+            <div id="probabilityBands" class="bar-stack"></div>
+          </article>
+
+          <article class="panel risk-table-panel">
+            <div class="panel-head">
+              <h2>Priorizacion</h2>
+              <span id="riskHighCount" class="pill muted">0</span>
+            </div>
+            <div id="riskTable" class="risk-table"></div>
+          </article>
+
+          <article class="panel evidence-panel">
+            <div class="panel-head">
+              <h2>Evidencia Bayesiana</h2>
+              <span id="evidenceCount" class="pill muted">0</span>
+            </div>
+            <div id="evidenceTable" class="evidence-table"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="studentsView" class="view">
+        <section class="students-layout">
+          <article class="panel students-panel">
+            <div class="panel-head">
+              <h2>Estudiantes</h2>
+              <span id="studentCount" class="pill muted">0</span>
+            </div>
+            <div class="student-tools">
+              <input id="studentSearch" type="search" placeholder="Buscar" />
+              <select id="studentFilter" aria-label="Filtro de estudiantes">
+                <option value="all">Todos</option>
+                <option value="high-risk">Riesgo alto</option>
+                <option value="alerts">Con alerta</option>
+                <option value="without-evidence">Sin evidencia</option>
+                <option value="without-grades">Sin evaluaciones</option>
+              </select>
+            </div>
+            <div id="studentsTable" class="students-table"></div>
+          </article>
+
+          <aside class="panel detail-panel">
+            <div class="panel-head">
+              <h2>Detalle</h2>
+              <span id="detailAlert" class="pill muted">--</span>
+            </div>
+            <div id="studentDetail" class="student-detail"></div>
+          </aside>
+        </section>
+      </section>
+
+      <section id="tutorView" class="view">
+        <section class="tutor-layout">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Desempeno Del Tutor</h2>
+              <span id="tutorLevel" class="pill muted">Sin dato</span>
+            </div>
+            <div id="tutorKpis" class="kpi-grid compact"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Actividad Tutorial</h2>
+              <span id="tutorActivityCount" class="pill muted">0</span>
+            </div>
+            <div id="tutorActivityBars" class="activity-bars"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="automationView" class="view">
+        <section class="automation-layout">
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Automatizacion Semanal</h2>
+              <span id="automationState" class="pill">Propuesta</span>
+            </div>
+            <div id="automationDetail" class="detail-grid single"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Flujo Previsto</h2>
+              <span class="pill muted">Institucional</span>
+            </div>
+            <div class="timeline-list">
+              <div><strong>1</strong><span>Extraer participacion Moodle semanalmente.</span></div>
+              <div><strong>2</strong><span>Calcular indicadores y riesgo bayesiano trazable.</span></div>
+              <div><strong>3</strong><span>Sincronizar resumen con Google Sheets institucional.</span></div>
+              <div><strong>4</strong><span>Generar reportes personalizados solo para estudiantes afectados.</span></div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section id="extractView" class="view">
+        <section class="extract-grid">
+          <form id="runForm" class="panel">
+            <div class="panel-head">
+              <h2>Extraccion Moodle</h2>
+              <span class="pill muted">Modo seguro</span>
+            </div>
+            <label>
+              Backend FastAPI institucional
+              <input id="backendUrl" name="backend_url" type="url" placeholder="https://reporta-aula-moodle.onrender.com" />
+            </label>
+            <label>
+              Aula Moodle
+              <input name="moodle_base_url" type="url" value="https://www.virtual.facen.una.py/gradofacen" />
+            </label>
+            <div class="grid-two">
+              <label>
+                Curso ID
+                <input name="course_id" type="number" min="1" value="1718" />
+              </label>
+              <label>
+                Usuario
+                <input name="username" autocomplete="username" placeholder="se carga solo en backend seguro" />
+              </label>
+            </div>
+            <label>
+              Nota
+              <textarea name="notes" rows="3">La publicacion GitHub Pages no almacena credenciales. La extraccion real queda para FastAPI/GAS institucional.</textarea>
+            </label>
+            <div class="form-row">
+              <button id="runButton" type="submit">Probar backend</button>
+              <a class="buttonlike secondary" href="https://github.com/diegomezapy/reporta_aula_moodle">Repositorio</a>
+            </div>
+          </form>
+
+          <article class="panel result-panel">
+            <div class="panel-head">
+              <h2>Evidencias</h2>
+              <span id="fileCount" class="pill muted">0</span>
+            </div>
+            <div id="files" class="file-list"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="runsView" class="view">
+        <section class="panel runs-panel">
+          <div class="panel-head">
+            <h2>Corridas</h2>
+            <span id="runCount" class="pill muted">0</span>
+          </div>
+          <div id="runsTable" class="runs-table"></div>
+        </section>
+      </section>
+
+      <section id="auditView" class="view">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Auditoria Y Buenas Practicas</h2>
+            <span id="auditCount" class="pill muted">0</span>
+          </div>
+          <div id="auditTable" class="audit-table"></div>
+        </section>
+      </section>
     </main>
-    <script>
-      (() => {
-        const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec";
-        const nativeFetch = window.fetch.bind(window);
-        const state = {
-          report: null,
-          automation: {
-            enabled: true,
-            interval_minutes: 10080,
-            sync_to_google: true,
-            include_tutor_participation: true,
-            notes: "Revision semanal de participacion y riesgo academico.",
-            next_run_at: new Date(Date.now() + 7 * 86400000).toISOString(),
-          },
-        };
-
-        function json(payload, status = 200) {
-          return new Response(JSON.stringify(payload), {
-            status,
-            headers: { "Content-Type": "application/json; charset=utf-8" },
-          });
-        }
-
-        function first(...values) {
-          return values.find((value) => value !== undefined && value !== null && value !== "");
-        }
-
-        function asNumber(value, fallback = 0) {
-          const n = Number(value);
-          return Number.isFinite(n) ? n : fallback;
-        }
-
-        function riskLevel(probability) {
-          if (probability >= 0.7) return "Critico";
-          if (probability >= 0.5) return "Alto";
-          if (probability >= 0.3) return "Medio";
-          return "Bajo";
-        }
-
-        function platformLevel(actions) {
-          if (actions >= 15) return "Alta";
-          if (actions >= 6) return "Media";
-          if (actions > 0) return "Baja";
-          return "Sin evidencia";
-        }
-
-        function evaluativeLevel(grades) {
-          if (grades >= 3) return "Alta";
-          if (grades >= 1) return "Media";
-          return "Sin evaluaciones";
-        }
-
-        function normalizeFactors(value) {
-          if (Array.isArray(value)) return value.filter(Boolean);
-          return String(value || "")
-            .split(/;|,/)
-            .map((item) => item.trim())
-            .filter(Boolean);
-        }
-
-        function localRows() {
-          return [
-            ["demo-01", "Estudiante 01", 6, 1, 1, 3],
-            ["demo-02", "Estudiante 02", 11, 7, 3, 8],
-            ["demo-03", "Estudiante 03", 5, 2, 1, 32],
-            ["demo-04", "Estudiante 04", 0, 0, 0, 72],
-            ["demo-05", "Estudiante 05", 6, 1, 1, 49],
-            ["demo-06", "Estudiante 06", 2, 0, 0, 82],
-            ["demo-07", "Estudiante 07", 17, 9, 3, 3],
-            ["demo-08", "Estudiante 08", 6, 0, 0, 66],
-            ["demo-09", "Estudiante 09", 20, 9, 3, 7],
-            ["demo-10", "Estudiante 10", 10, 2, 1, 1],
-            ["demo-11", "Estudiante 11", 1, 0, 0, 64],
-            ["demo-12", "Estudiante 12", 2, 0, 0, 57],
-            ["demo-13", "Estudiante 13", 15, 0, 1, 15],
-            ["demo-14", "Estudiante 14", 18, 7, 3, 0],
-            ["demo-15", "Estudiante 15", 23, 20, 3, 2],
-            ["demo-16", "Estudiante 16", 13, 9, 2, 50],
-            ["demo-17", "Estudiante 17", 7, 2, 1, 67],
-            ["demo-18", "Estudiante 18", 16, 3, 1, 3],
-            ["demo-19", "Estudiante 19", 0, 0, 0, 88],
-            ["demo-20", "Estudiante 20", 8, 2, 1, 18],
-          ].map(([userId, name, actions, forums, grades, days]) => ({ userId, name, actions, forums, grades, days_since_last_access: days }));
-        }
-
-        function normalizeSummary(row, index) {
-          const actions = asNumber(first(row.actions, row.actions_registered, row.total_actions), 0);
-          const forums = asNumber(first(row.forums, row.forum_posts), 0);
-          const grades = asNumber(first(row.grades, row.grade_cells_with_value), 0);
-          const days = asNumber(first(row.days_since_last_access, row.days_from_last_access, row.days_without_access), 0);
-          const prior = asNumber(first(row.prior, row.bayesian_prior_probability), 0.2);
-          let posterior = asNumber(first(row.posterior, row.bayesian_posterior_probability, row.desertion_probability), NaN);
-          const factors = normalizeFactors(first(row.evidence, row.bayesian_evidence_factors, row.desertion_risk_factors));
-          if (!Number.isFinite(posterior)) {
-            const evidenceWeight = (days >= 45 ? 0.22 : days <= 7 ? -0.1 : 0) + (actions === 0 ? 0.25 : actions < 5 ? 0.12 : -0.05) + (grades === 0 ? 0.2 : -0.05) + (forums === 0 ? 0.08 : -0.03);
-            posterior = Math.max(0.02, Math.min(0.95, prior + evidenceWeight));
-          }
-          if (!factors.length) {
-            if (days >= 45) factors.push("Ultimo acceso prolongado");
-            if (actions === 0) factors.push("Sin actividad en plataforma");
-            if (grades === 0) factors.push("Sin evaluaciones registradas");
-            if (!factors.length) factors.push("Participacion registrada");
-          }
-          const level = first(row.riskLevel, row.desertion_risk_level, riskLevel(posterior));
-          return {
-            user_id: first(row.user_id, row.userId, `demo-${String(index + 1).padStart(2, "0")}`),
-            name: first(row.name, row.nombre, `Estudiante ${index + 1}`),
-            email: first(row.email, row.correo, ""),
-            last_access: first(row.last_access, row.ultimo_acceso_curso, days ? `${days} dias desde ultimo acceso` : "Sin dato"),
-            days_since_last_access: days,
-            actions_registered: actions,
-            forum_posts: forums,
-            grade_cells_with_value: grades,
-            course_total: first(row.course_total, row.total_curso, "-"),
-            platform_level: first(row.platform_level, platformLevel(actions)),
-            evaluative_level: first(row.evaluative_level, evaluativeLevel(grades)),
-            desertion_probability: posterior,
-            desertion_risk_level: level,
-            desertion_risk_factors: factors,
-            follow_up_alert: first(row.follow_up_alert, ["Critico", "Alto"].includes(level) || days >= 45 || actions === 0),
-            bayesian_prior_probability: prior,
-            bayesian_posterior_probability: posterior,
-            bayesian_log_likelihood_ratio: first(row.logLr, row.bayesian_log_likelihood_ratio, "0.00"),
-            bayesian_evidence_factors: factors,
-            risk_model_version: first(row.risk_model_version, "bayes_lr_expert_v0.1"),
-            tutor_activity_signal: first(row.tutor_activity_signal, "Seguimiento semanal"),
-          };
-        }
-
-        function normalizeReport(payload) {
-          const source = payload && payload.report ? payload.report : payload || {};
-          const rawRows = source.summaries && source.summaries.length ? source.summaries : localRows();
-          const summaries = rawRows.map(normalizeSummary);
-          const totalActions = summaries.reduce((sum, row) => sum + row.actions_registered, 0);
-          const totalForums = summaries.reduce((sum, row) => sum + row.forum_posts, 0);
-          return {
-            run_id: first(source.runId, source.run_id, "gas-public-demo"),
-            course_title: first(source.courseTitle, source.course_title, "Analitica de Big Data - tablero publico"),
-            course_id: first(source.courseId, source.course_id, "1718"),
-            generated_at: first(source.generatedAt, source.generated_at, new Date().toISOString()),
-            moodle_base_url: first(source.moodle_base_url, "https://www.virtual.facen.una.py/gradofacen"),
-            participants_count: summaries.length,
-            summaries,
-            activity_summary: [
-              { activity_name: "Foro Actividad 2 - Unidad 1", action: "post", count: 36 },
-              { activity_name: "Foro Actividad 2.2 - Unidad 2", action: "post", count: 22 },
-              { activity_name: "Foro de la Unidad 3", action: "post", count: 6 },
-              { activity_name: "Entrega primer parcial", action: "submitted", count: 7 },
-              { activity_name: "Accesos a materiales", action: "viewed", count: Math.max(1, totalActions - totalForums) },
-            ],
-            tutor_summary: { active_tutors: 1, actions_registered: 42, forum_posts: 9, activity_coverage: 0.82, participation_level: "Alta" },
-            tutor_activity_summary: [
-              { activity_name: "Seguimiento semanal", action: "reviewed", count: 20 },
-              { activity_name: "Mensajes personalizados", action: "sent", count: 8 },
-              { activity_name: "Foro novedades", action: "posted", count: 2 },
-            ],
-            files: ["reporte_aula_moodle.xlsx", "resumen_estudiantes.csv", "riesgo_desercion.csv"],
-          };
-        }
-
-        function loadGasReport() {
-          return new Promise((resolve, reject) => {
-            const callback = `reportaAulaGas_${Date.now()}_${Math.round(Math.random() * 10000)}`;
-            const script = document.createElement("script");
-            const timer = setTimeout(() => cleanup(() => reject(new Error("Tiempo de espera agotado al consultar GAS"))), 10000);
-            function cleanup(done) {
-              clearTimeout(timer);
-              delete window[callback];
-              script.remove();
-              done && done();
-            }
-            window[callback] = (payload) => cleanup(() => resolve(normalizeReport(payload)));
-            script.onerror = () => cleanup(() => reject(new Error("No se pudo cargar el reporte GAS")));
-            script.src = `${GAS_REPORT_URL}?api=report&callback=${encodeURIComponent(callback)}&v=${Date.now()}`;
-            document.head.appendChild(script);
-          });
-        }
-
-        async function getReport() {
-          if (state.report) return state.report;
-          try {
-            state.report = await loadGasReport();
-          } catch (error) {
-            state.report = normalizeReport({ summaries: localRows(), generated_at: new Date().toISOString() });
-          }
-          return state.report;
-        }
-
-        function run(status = "done", message = "Reporte publico cargado desde GAS") {
-          return {
-            run_id: "gas-public-demo",
-            status,
-            message,
-            created_at: new Date().toISOString(),
-            finished_at: new Date().toISOString(),
-            files: ["reporte_aula_moodle.xlsx", "resumen_estudiantes.csv", "riesgo_desercion.csv"],
-          };
-        }
-
-        function auditRows() {
-          return [
-            { timestamp: new Date().toISOString(), username: "pages-public", method: "GET", path: "/api/reports/latest/dashboard", status_code: 200 },
-            { timestamp: new Date().toISOString(), username: "gas-public", method: "JSONP", path: GAS_REPORT_URL, status_code: 200 },
-          ];
-        }
-
-        function installApiShim() {
-          window.fetch = async (input, init = {}) => {
-            const requestUrl = typeof input === "string" ? input : input.url;
-            const url = new URL(requestUrl, window.location.href);
-            const path = url.pathname;
-            const method = String(init.method || "GET").toUpperCase();
-            if (path.endsWith("/api/defaults")) return json({ moodle_base_url: "https://www.virtual.facen.una.py/gradofacen", course_id: 1718, spreadsheet_id: "GAS publico demo", has_google_sink: true, has_basic_auth: false });
-            if (path.endsWith("/api/reports/latest/dashboard")) return json(await getReport());
-            if (path.endsWith("/api/automation") && method === "GET") return json(state.automation);
-            if (path.endsWith("/api/automation") && method === "PUT") return json(Object.assign(state.automation, JSON.parse(init.body || "{}")));
-            if (path.endsWith("/api/automation/run-now")) return json(run("done", "Corrida simulada en GitHub Pages; backend GAS disponible."));
-            if (path.endsWith("/api/audit/access")) return json(auditRows());
-            if (path.endsWith("/api/runs") && method === "GET") return json([run()]);
-            if (path.endsWith("/api/runs") && method === "POST") return json(run("done", "Solicitud registrada en modo demostracion publica."));
-            if (/\/api\/runs\/[^/]+\/dashboard$/.test(path)) return json(await getReport());
-            if (/\/api\/runs\/[^/]+$/.test(path)) return json(run());
-            if (/\/api\/runs\/[^/]+\/files\//.test(path)) return new Response("Archivo disponible en la version backend institucional.", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
-            return nativeFetch(input, init);
-          };
-        }
-
-        async function boot() {
-          const response = await nativeFetch("app/static/index.html?v=20260611-gas-loader");
-          const html = await response.text();
-          const match = html.match(/<main class="shell">[\s\S]*?<\/main>/);
-          if (!match) throw new Error("No se encontro la interfaz principal versionada.");
-          document.body.innerHTML = match[0];
-          installApiShim();
-          const script = document.createElement("script");
-          script.src = "app/static/app.js?v=20260611-gas-loader";
-          document.body.appendChild(script);
-        }
-
-        boot().catch((error) => {
-          document.getElementById("boot").innerHTML = `<header class="topbar"><div><h1>Reporta Aula Moodle</h1><p>${error.message}</p></div><span class="pill error">Error</span></header>`;
-        });
-      })();
-    </script>
+    <script src="assets/pages-app.js?v=20260611-gas-full"></script>
   </body>
 </html>

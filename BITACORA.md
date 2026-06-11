@@ -208,3 +208,36 @@ Para una muestra publica inicial conviene evitar scopes de Sheets/Drive/Moodle y
 - Se redactaron credenciales, tokens y codigos temporales para evitar secretos versionados.
 - Se agrego el archivo a la seccion de documentacion operativa del README.
 
+## 2026-06-11 - Publicacion GitHub Pages como app completa
+
+### Objetivo
+
+Convertir la URL publica de GitHub Pages en la version extensa de la app, evitando que funcione solo como portada o pagina intermedia.
+
+### Acciones
+
+- Se reemplazo `index.html` por una app estatica completa con vistas de tablero, riesgo, estudiantes, tutoria, automatizacion, extraccion, corridas y auditoria.
+- Se agregaron `assets/pages-app.js` y `assets/pages-app.css`.
+- Se agregaron `manifest.json` y `service-worker.js` para PWA/cache basico.
+- Se actualizo `gas_public_demo/Code.gs` para exponer:
+  - `/exec?api=report`: JSON con reporte de muestra.
+  - `/exec?api=report&callback=cb`: JSONP para consumo desde GitHub Pages sin bloqueo CORS.
+- Se redeployo el GAS publico manteniendo el mismo deployment:
+  - `AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg @4`.
+
+### Verificacion
+
+- `node --check assets/pages-app.js`: correcto.
+- `node --check` sobre `gas_public_demo/Code.gs` via stdin: correcto.
+- `clasp push -f`: correcto.
+- `clasp deploy -i ...`: correcto, version `@4`.
+- `/exec?api=report`: HTTP 200, `application/json`, incluye `report.summaries`.
+- `/exec?api=report&callback=cb`: HTTP 200, `text/javascript`, inicia con `cb(` e incluye `summaries`.
+- Servidor local `http://127.0.0.1:8055/`: HTTP 200.
+- Captura Playwright desktop: KPIs renderizados.
+- Captura Playwright movil: vista responsive renderizada.
+
+### Decision operativa
+
+GitHub Pages queda como superficie visible y directa de la app. Los datos publicados son anonimos/de muestra; los datos reales de Moodle y Google Sheets deben cargarse solo cuando el backend/GAS se migre a la cuenta institucional autorizada.
+

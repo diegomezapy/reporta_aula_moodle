@@ -14,9 +14,17 @@ Muestra GAS publica funcional:
 
 `https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec`
 
+Publicacion GitHub Pages con tablero completo:
+
+`https://diegomezapy.github.io/reporta_aula_moodle/`
+
 Endpoint de verificacion JSON:
 
 `https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec?api=1`
+
+Endpoint JSONP para GitHub Pages:
+
+`https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec?api=report&callback=cb`
 
 ## Que Extrae
 
@@ -31,7 +39,9 @@ Endpoint de verificacion JSON:
 
 ## Tablero
 
-La primera pantalla es un tablero operativo con:
+La URL publica de GitHub Pages abre directamente un tablero operativo completo, no una portada intermedia. La app estatica carga una muestra anonima desde GAS por JSONP y usa datos locales integrados si el endpoint de GAS no esta disponible.
+
+La primera pantalla incluye:
 
 - KPIs generales del aula.
 - Filtros globales por estudiante, nivel de riesgo, actividad en plataforma, participacion evaluativa y alertas.
@@ -47,6 +57,7 @@ La primera pantalla es un tablero operativo con:
 - Vista de tutoria con acciones, foros, cobertura y actividades con evidencia.
 - Vista de automatizacion para activar corridas periodicas desde la web.
 - Vista de auditoria con registro de uso de la app.
+- PWA basica con `manifest.json` y `service-worker.js`.
 
 Los endpoints usados por el tablero devuelven un payload compacto y no incluyen las tablas crudas de Moodle. Los archivos completos quedan disponibles como evidencias de la corrida.
 
@@ -125,6 +136,8 @@ URL verificada:
 Pruebas realizadas el 2026-06-11:
 
 - `/exec?api=1`: HTTP 200, `application/json`.
+- `/exec?api=report`: HTTP 200, `application/json`, incluye `report.summaries`.
+- `/exec?api=report&callback=cb`: HTTP 200, `text/javascript`, respuesta JSONP para GitHub Pages.
 - `/exec`: HTTP 200, `text/html`, titulo `Reporta Aula Moodle`.
 
 Esta muestra calcula KPIs y riesgo bayesiano con datos simulados y anonimizados. No escribe en hojas ni almacena credenciales.

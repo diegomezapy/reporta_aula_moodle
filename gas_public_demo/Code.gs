@@ -2,6 +2,17 @@ const MODEL_VERSION = 'gas_public_demo_bayes_v0.1';
 
 function doGet(e) {
   const params = (e && e.parameter) || {};
+  if (params.api === 'report') {
+    const payload = {
+      ok: true,
+      app: 'Reporta Aula Moodle GAS Public Demo',
+      mode: 'gas-public-demo',
+      report: buildDemoReport_(),
+      generatedAt: new Date().toISOString(),
+    };
+    if (params.callback) return jsonp_(params.callback, payload);
+    return json_(payload);
+  }
   if (params.api === '1') {
     return json_({
       ok: true,
@@ -149,4 +160,13 @@ function json_(payload) {
   return ContentService
     .createTextOutput(JSON.stringify(payload))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function jsonp_(callback, payload) {
+  const safeCallback = /^[A-Za-z_$][0-9A-Za-z_$.]*$/.test(String(callback || ''))
+    ? String(callback)
+    : 'reportaAulaCallback';
+  return ContentService
+    .createTextOutput(safeCallback + '(' + JSON.stringify(payload) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }

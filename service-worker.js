@@ -1,0 +1,25 @@
+const CACHE_NAME = "reporta-aula-moodle-pages-v20260611";
+const APP_SHELL = [
+  "./",
+  "index.html",
+  "manifest.json",
+  "assets/pages-app.css?v=20260611-gas-full",
+  "assets/pages-app.js?v=20260611-gas-full",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))),
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+});

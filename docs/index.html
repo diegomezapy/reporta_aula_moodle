@@ -3,20 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Reporta Aula Moodle</title>
+    <title>Reporta Aula Moodle - Documentacion</title>
     <style>
       body {
         margin: 0;
         min-height: 100vh;
-        background: #f5f7f4;
-        color: #17221d;
+        background: #f4f6f2;
+        color: #20251f;
         font-family: Arial, Helvetica, sans-serif;
       }
 
       main {
-        width: min(920px, calc(100% - 32px));
+        width: min(860px, calc(100% - 32px));
         margin: 0 auto;
-        padding: 32px 0;
+        padding: 34px 0;
       }
 
       h1 {
@@ -25,14 +25,14 @@
       }
 
       p {
-        color: #5d6b63;
+        color: #667164;
         line-height: 1.55;
       }
 
       .panel {
         margin-top: 22px;
-        border: 1px solid #dfe6df;
-        border-left: 4px solid #c8a24a;
+        border: 1px solid #dfe5dc;
+        border-left: 4px solid #246f5c;
         border-radius: 8px;
         background: #ffffff;
         padding: 18px;
@@ -43,7 +43,7 @@
         align-items: center;
         justify-content: center;
         min-height: 42px;
-        margin-top: 12px;
+        margin: 12px 8px 0 0;
         border-radius: 8px;
         background: #246f5c;
         color: #ffffff;
@@ -51,23 +51,24 @@
         font-weight: 700;
         text-decoration: none;
       }
+
+      a.secondary {
+        border: 1px solid #dfe5dc;
+        background: #ffffff;
+        color: #164f42;
+      }
     </style>
   </head>
   <body>
     <main>
       <h1>Reporta Aula Moodle</h1>
-      <p>
-        Appweb para reportes Moodle, seguimiento academico y riesgo bayesiano de desercion.
-      </p>
+      <p>La app publica completa se sirve desde la raiz de GitHub Pages y consume una muestra anonima desde GAS.</p>
       <section class="panel">
-        <h2>Pagina publica disponible</h2>
-        <p>
-          GitHub Pages sirve esta portada estatica. La extraccion Moodle funciona desde el backend
-          FastAPI desplegado en un servicio que ejecute Python.
-        </p>
-        <a href="https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec">Abrir muestra GAS</a>
-        <a href="https://render.com/deploy?repo=https://github.com/diegomezapy/reporta_aula_moodle">Desplegar en Render</a>
-        <a href="https://github.com/diegomezapy/reporta_aula_moodle">Ver repositorio</a>
+        <h2>Accesos</h2>
+        <p>Use la app principal para tablero, riesgo, estudiantes, tutoria, automatizacion, corridas y auditoria.</p>
+        <a href="https://diegomezapy.github.io/reporta_aula_moodle/">Abrir app completa</a>
+        <a class="secondary" href="https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec">Abrir demo GAS</a>
+        <a class="secondary" href="https://github.com/diegomezapy/reporta_aula_moodle">Repositorio</a>
       </section>
     </main>
   </body>
