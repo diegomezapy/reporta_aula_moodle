@@ -241,3 +241,100 @@ Convertir la URL publica de GitHub Pages en la version extensa de la app, evitan
 
 GitHub Pages queda como superficie visible y directa de la app. Los datos publicados son anonimos/de muestra; los datos reales de Moodle y Google Sheets deben cargarse solo cuando el backend/GAS se migre a la cuenta institucional autorizada.
 
+## 2026-06-11 10:22 - Boton de acceso a hoja de registros
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Analitica de Big Data.
+- Ruta local: `/tmp/reporta_aula_sheet_button` como clon limpio de publicacion; carpeta operativa original en Google Drive `FACEN_BIGDATA/reporta_aula_moodle`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Responsable: Diego Meza.
+- Version: commit `c42ad05`.
+
+### Objetivo de la intervencion
+
+- Agregar un acceso visible desde la app hacia la hoja en linea que guarda los registros operativos.
+
+### Diagnostico inicial
+
+- La app publicada en GitHub Pages no tenia un boton directo para abrir la planilla de Google Sheets.
+- El repositorio operativo local en Google Drive mantenia cambios de fin de linea y una rama local desfasada; para evitar pisar trabajo local se uso un clon limpio temporal.
+- Se consulto el manual maestro de appweb y aplican los criterios de botones claros, acciones principales visibles, versionado de assets, verificacion real de GitHub Pages y bitacora actualizada.
+
+### Acciones realizadas
+
+- Se agrego el boton `Hoja en linea` en el encabezado de GitHub Pages.
+- Se agrego el boton equivalente `Hoja en linea` en la interfaz FastAPI local.
+- Se estilizo `.sheet-button` como accion secundaria visible, responsive y coherente con el tablero.
+- Se actualizo el README para documentar el acceso a la hoja de registros.
+- Se incremento el versionado de assets estaticos a `20260611-sheet-button`.
+- Se actualizo el cache del service worker a `reporta-aula-moodle-pages-v20260611-sheet-button`.
+
+### Archivos modificados
+
+- `index.html`.
+- `assets/pages-app.css`.
+- `service-worker.js`.
+- `app/static/index.html`.
+- `app/static/styles.css`.
+- `README.md`.
+- `BITACORA.md`.
+
+### Comandos o scripts ejecutados
+
+- `python3 -m compileall app tests`.
+- `/Users/diegobernardomezabogado/reporta_aula_moodle/.venv/bin/python -m pytest`.
+- `node --check assets/pages-app.js`.
+- `node --check app/static/app.js`.
+- `node --input-type=commonjs --check - < gas_public_demo/Code.gs`.
+- `git diff --check`.
+- `git push origin diego`.
+- `git push origin diego:main`.
+- Verificaciones `curl` contra GitHub Pages, raw GitHub y assets versionados.
+
+### Resultados verificados
+
+- Commit publicado: `c42ad05 feat: agregar acceso a hoja de registros`.
+- Ramas remotas `diego` y `main` verificadas en `c42ad05e293c37714b473a697e943c83bd1f7772`.
+- GitHub raw de `main/index.html` incluye el boton, la URL de la planilla y `20260611-sheet-button`.
+- GitHub Pages publico muestra el boton `Hoja en linea` y la URL:
+  - `https://docs.google.com/spreadsheets/d/1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8/edit?usp=sharing`.
+- `assets/pages-app.css?v=20260611-sheet-button`: HTTP 200.
+- `service-worker.js`: HTTP 200.
+
+### Pruebas realizadas
+
+- Compilacion Python: correcta.
+- Pytest: 5 pruebas pasadas.
+- Validacion sintactica JS de frontend Pages y FastAPI: correcta.
+- Validacion sintactica GAS por stdin: correcta.
+- Verificacion de espacios finales con `git diff --check`: correcta.
+- Verificacion publica de GitHub Pages: correcta luego de esperar invalidacion de cache.
+
+### Errores o incidentes
+
+- GitHub Pages sirvio temporalmente el HTML anterior `20260611-gas-full` por cache de borde.
+- `gh` no esta instalado en este entorno, por lo que la verificacion de publicacion se realizo con `git`, `curl`, GitHub raw y API publica.
+
+### Soluciones aplicadas
+
+- Se uso cache busting mediante query/version de assets y nuevo nombre de cache del service worker.
+- Se monitoreo la URL publica hasta confirmar que Pages ya servia `20260611-sheet-button`.
+
+### Pendientes
+
+- Validar con usuario que la cuenta tiene permisos para abrir la planilla desde el boton.
+- Mantener la hoja real protegida con permisos institucionales adecuados.
+- Migrar la integracion real Sheets/GAS a cuenta institucional autorizada antes de produccion.
+
+### Riesgos
+
+- Si la hoja cambia de URL o permisos, el boton seguira visible pero el acceso puede fallar para usuarios sin autorizacion.
+- Los datos reales no deben exponerse en GitHub Pages ni en JSON publico sin control de acceso.
+
+### Recomendaciones
+
+- Mantener un enlace visible a la fuente operativa de registros en todas las vistas administrativas.
+- Para siguientes cambios de GitHub Pages, conservar versionado de assets y verificar la URL publica, no solo el push.
