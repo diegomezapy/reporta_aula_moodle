@@ -1017,6 +1017,14 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - JS local contiene `APP_VERSION = "2026.06.11-bayes-path"`, `bayesianPath`, `renderBayesianPath`, `semesterEvidenceItems` y `careerEvidenceItems`.
 - CSS local contiene estilos `bayes-panel`, `bayes-summary`, `bayes-flow`, `bayes-node` y `bayes-meter`.
 - Service worker local contiene cache `reporta-aula-moodle-pages-v20260611-bayes-path`.
+- Commit funcional publicado: `22e4864 feat: agregar ruta visual bayesiana`.
+- Ramas remotas actualizadas: `origin/diego` y `origin/main`.
+- GitHub Pages verificado en `https://diegomezapy.github.io/reporta_aula_moodle/`:
+  - HTML publico sirve assets `20260611-bayes-path`;
+  - HTML publico contiene `Ruta Bayesiana Del Pronostico` y `bayesFlow`;
+  - JS publico contiene `APP_VERSION = "2026.06.11-bayes-path"`, `bayesianPath`, `renderBayesianPath`, `semesterEvidenceItems` y `careerEvidenceItems`;
+  - CSS publico contiene estilos `bayes-panel`, `bayes-flow`, `bayes-node` y `bayes-meter`;
+  - service worker publico contiene cache `reporta-aula-moodle-pages-v20260611-bayes-path`.
 
 ### Errores o incidentes
 
@@ -1030,7 +1038,7 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 ### Pendientes
 
-- Publicar commit y verificar GitHub Pages con assets `20260611-bayes-path`.
+- Validar visualmente en navegador con datos reales despues de la primera extraccion Moodle real.
 
 ### Riesgos
 
