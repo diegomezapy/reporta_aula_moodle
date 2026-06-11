@@ -165,3 +165,46 @@ La URL temporal anterior de `localhost.run` comenzo a responder `503`, aunque el
 - Con Basic Auth: HTTP 200.
 - La credencial temporal se mantiene localmente fuera de Git.
 
+## 2026-06-11 - Muestra funcional en Google Apps Script
+
+### Objetivo
+
+Crear una muestra publica ejecutable por GAS para demostrar el flujo de appweb sin depender todavia de Render, tuneles temporales ni permisos institucionales de Google Sheets.
+
+### Acciones
+
+- Se creo la carpeta `gas_public_demo/` con una Web App GAS autocontenida.
+- La muestra no usa `SpreadsheetApp`, `DriveApp`, Moodle ni scopes sensibles.
+- Se creo el proyecto Apps Script `Reporta Aula Moodle GAS Public Demo`.
+- Se publico el deployment Web App:
+  - `https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec`
+- Se mantuvo separada la carpeta `gas/` como base de integracion real con Google Sheets para la futura cuenta institucional.
+
+### Verificacion
+
+- `node --check` sobre el codigo GAS via stdin: correcto.
+- `clasp push -f`: 3 archivos subidos.
+- `clasp deploy`: deployment `AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg @3`.
+- Datos de muestra: anonimizados, sin correos ni nombres reales.
+- `/exec?api=1`: HTTP 200, `application/json`, respuesta `ok:true`.
+- `/exec`: HTTP 200, `text/html`, titulo `Reporta Aula Moodle`.
+
+### Decision operativa
+
+Para una muestra publica inicial conviene evitar scopes de Sheets/Drive/Moodle y probar primero ejecucion anonima real. La version con escritura en Google Sheets debe autorizarse y publicarse desde la cuenta propietaria/institucional, porque un deployment puede figurar como publico y aun asi devolver 403 si la cuenta no tiene permisos efectivos.
+
+### Pendiente
+
+- Transferir o recrear el proyecto GAS en la cuenta institucional cuando el modelo este listo.
+- Rehabilitar la escritura en Google Sheets desde `gas/` luego de la autorizacion institucional.
+- Probar lectura/escritura real contra la planilla institucional antes de declarar produccion.
+
+## 2026-06-11 - Registro de secuencia de prompts del proyecto
+
+### Accion
+
+- Se creo `docs/secuencia_prompts_reporta_aula_moodle_ultima_edicion_20260611.md`.
+- El archivo identifica claramente el proyecto, la ultima fecha de edicion y la secuencia cronologica consolidada de pedidos.
+- Se redactaron credenciales, tokens y codigos temporales para evitar secretos versionados.
+- Se agrego el archivo a la seccion de documentacion operativa del README.
+

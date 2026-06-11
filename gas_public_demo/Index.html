@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { margin: 0; background: #f5f7f4; color: #17221d; font-family: Arial, Helvetica, sans-serif; }
+      main { width: min(1120px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0; }
+      header { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #dfe6df; padding-bottom: 16px; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(28px, 5vw, 48px); }
+      p { color: #5d6b63; line-height: 1.5; }
+      .badge { border: 1px solid #cfe1d9; border-radius: 999px; background: #edf6f1; color: #164a3d; padding: 8px 12px; font-weight: 700; white-space: nowrap; }
+      .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+      .panel, .kpi { border: 1px solid #dfe6df; border-radius: 8px; background: #fff; padding: 16px; box-shadow: 0 12px 24px rgba(24, 36, 29, .06); }
+      .kpi span { display: block; color: #64736b; font-size: 12px; font-weight: 700; }
+      .kpi strong { display: block; margin-top: 8px; font-size: 28px; }
+      button { margin-top: 16px; min-height: 42px; border: 0; border-radius: 8px; background: #246f5c; color: #fff; cursor: pointer; font: inherit; font-weight: 700; padding: 10px 14px; }
+      .layout { display: grid; grid-template-columns: 1fr 1.5fr; gap: 14px; margin-top: 14px; }
+      .bars { display: grid; gap: 10px; margin-top: 12px; }
+      .bar-label { display: flex; justify-content: space-between; color: #64736b; font-weight: 700; }
+      .track { height: 10px; border-radius: 999px; background: #edf1ec; overflow: hidden; }
+      .fill { height: 100%; border-radius: inherit; background: #246f5c; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+      th, td { border-bottom: 1px solid #dfe6df; padding: 10px 8px; text-align: left; vertical-align: top; }
+      th { color: #64736b; font-size: 11px; text-transform: uppercase; }
+      .Critico, .Alto { color: #a13b35; font-weight: 700; }
+      .Medio { color: #a15f1b; font-weight: 700; }
+      .Bajo { color: #22724f; font-weight: 700; }
+      #status { margin-top: 12px; color: #64736b; font-weight: 700; min-height: 22px; }
+      @media (max-width: 820px) { header, .grid, .layout { grid-template-columns: 1fr; display: grid; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Reporta Aula Moodle</h1>
+          <p>Muestra funcional publica ejecutada en Google Apps Script.</p>
+        </div>
+        <span class="badge">GAS sin servidor</span>
+      </header>
+      <button id="runButton" type="button">Ejecutar muestra GAS</button>
+      <div id="status">Preparando...</div>
+      <section id="kpis" class="grid"></section>
+      <section class="layout">
+        <article class="panel">
+          <h2>Semaforo</h2>
+          <div id="bars" class="bars"></div>
+        </article>
+        <article class="panel">
+          <h2>Priorizacion</h2>
+          <div id="table"></div>
+        </article>
+      </section>
+    </main>
+    <script>
+      const statusBox = document.querySelector("#status");
+      const runButton = document.querySelector("#runButton");
+      const kpis = document.querySelector("#kpis");
+      const bars = document.querySelector("#bars");
+      const table = document.querySelector("#table");
+      const percent = (value) => `${Math.round(Number(value || 0) * 100)}%`;
+      const number = (value) => new Intl.NumberFormat("es-PY").format(value || 0);
+      function kpi(label, value, sub) {
+        const item = document.createElement("article");
+        item.className = "kpi";
+        item.innerHTML = `<span>${label}</span><strong>${value}</strong><span>${sub || ""}</span>`;
+        return item;
+      }
+      function render(report) {
+        const rows = report.summaries || [];
+        kpis.replaceChildren(
+          kpi("Estudiantes", number(report.kpis.total), "muestra"),
+          kpi("Alertas", number(report.kpis.alerts), "seguimiento"),
+          kpi("Riesgo medio", percent(report.kpis.avgRisk), report.modelVersion),
+          kpi("Acciones", number(report.kpis.actions), "Moodle demo"),
+        );
+        bars.replaceChildren();
+        ["Critico", "Alto", "Medio", "Bajo"].forEach((level) => {
+          const count = Number((report.kpis.risk || {})[level] || 0);
+          const item = document.createElement("div");
+          item.innerHTML = `<div class="bar-label"><span>${level}</span><strong>${count}</strong></div><div class="track"><div class="fill" style="width:${Math.round((count / Math.max(rows.length, 1)) * 100)}%"></div></div>`;
+          bars.appendChild(item);
+        });
+        const sorted = [...rows].sort((a, b) => Number(b.posterior) - Number(a.posterior));
+        table.innerHTML = `<table><thead><tr><th>Estudiante</th><th>Posterior</th><th>Riesgo</th><th>Evidencia</th></tr></thead><tbody>${sorted.map((row) => `<tr><td><strong>${row.name}</strong><br><small>${row.userId}</small></td><td>${percent(row.posterior)}</td><td class="${row.riskLevel}">${row.riskLevel}</td><td>${row.evidence}</td></tr>`).join("")}</tbody></table>`;
+      }
+      function run() {
+        runButton.disabled = true;
+        statusBox.textContent = "Ejecutando en Apps Script...";
+        google.script.run
+          .withSuccessHandler((result) => {
+            runButton.disabled = false;
+            if (!result || !result.ok) {
+              statusBox.textContent = "No se pudo ejecutar la muestra.";
+              return;
+            }
+            statusBox.textContent = `Ejecutado: ${result.report.runId}`;
+            render(result.report);
+          })
+          .withFailureHandler((error) => {
+            runButton.disabled = false;
+            statusBox.textContent = error.message || String(error);
+          })
+          .runGasSample();
+      }
+      runButton.addEventListener("click", run);
+      run();
+    </script>
+  </body>
+</html>

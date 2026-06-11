@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f5f7f4;
+        --panel: #ffffff;
+        --ink: #17221d;
+        --muted: #64736b;
+        --line: #dfe6df;
+        --brand: #246f5c;
+        --good: #22724f;
+        --warn: #a15f1b;
+        --bad: #a13b35;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 22px 0 36px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 16px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(28px, 5vw, 48px);
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .badge {
+        border: 1px solid #cfe1d9;
+        border-radius: 999px;
+        background: #edf6f1;
+        color: #164a3d;
+        font-weight: 700;
+        padding: 8px 12px;
+        white-space: nowrap;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .panel,
+      .kpi {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 16px;
+        box-shadow: 0 12px 24px rgba(24, 36, 29, 0.06);
+      }
+
+      .kpi span {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .kpi strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 28px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+        gap: 12px;
+        margin-top: 18px;
+        align-items: end;
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      input {
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+      }
+
+      button {
+        min-height: 42px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--brand);
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 14px;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr;
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .bars {
+        display: grid;
+        gap: 10px;
+      }
+
+      .bar-label {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .track {
+        height: 10px;
+        border-radius: 999px;
+        background: #edf1ec;
+        overflow: hidden;
+      }
+
+      .fill {
+        height: 100%;
+        border-radius: inherit;
+        background: var(--brand);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+      }
+
+      .risk-Critico,
+      .risk-Alto {
+        color: var(--bad);
+        font-weight: 700;
+      }
+
+      .risk-Medio {
+        color: var(--warn);
+        font-weight: 700;
+      }
+
+      .risk-Bajo {
+        color: var(--good);
+        font-weight: 700;
+      }
+
+      #status {
+        margin-top: 12px;
+        min-height: 24px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      @media (max-width: 860px) {
+        header,
+        .toolbar,
+        .layout,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Reporta Aula Moodle</h1>
+          <p>Muestra funcional ejecutada completamente en Google Apps Script.</p>
+        </div>
+        <span class="badge">GAS demo</span>
+      </header>
+
+      <section class="toolbar">
+        <label>
+          Spreadsheet ID
+          <input id="spreadsheetId" value="1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8" />
+        </label>
+        <label>
+          Curso Moodle
+          <input id="courseId" value="1718" />
+        </label>
+        <label>
+          Titulo visible
+          <input id="courseTitle" value="Analitica de Big Data - Muestra GAS" />
+        </label>
+        <button id="runButton" type="button">Ejecutar muestra</button>
+      </section>
+      <div id="status">Listo.</div>
+
+      <section id="kpis" class="grid"></section>
+
+      <section class="layout">
+        <article class="panel">
+          <h2>Semaforo de riesgo</h2>
+          <div id="bars" class="bars"></div>
+        </article>
+        <article class="panel">
+          <h2>Priorizacion</h2>
+          <div id="table"></div>
+        </article>
+      </section>
+    </main>
+
+    <script>
+      const statusBox = document.querySelector("#status");
+      const runButton = document.querySelector("#runButton");
+      const kpis = document.querySelector("#kpis");
+      const bars = document.querySelector("#bars");
+      const table = document.querySelector("#table");
+
+      function percent(value) {
+        return `${Math.round(Number(value || 0) * 100)}%`;
+      }
+
+      function number(value) {
+        return new Intl.NumberFormat("es-PY").format(value || 0);
+      }
+
+      function kpi(label, value, sub) {
+        const item = document.createElement("article");
+        item.className = "kpi";
+        item.innerHTML = `<span>${label}</span><strong>${value}</strong><span>${sub || ""}</span>`;
+        return item;
+      }
+
+      function render(report) {
+        const rows = report.summaries || [];
+        const model = report.model_version || "gas_demo";
+        kpis.replaceChildren(
+          kpi("Estudiantes", number(report.kpis.total_students), "muestra"),
+          kpi("Alertas", number(report.kpis.alerts), "seguimiento"),
+          kpi("Riesgo medio", percent(report.kpis.average_risk), model),
+          kpi("Acciones", number(report.kpis.actions), "Moodle demo"),
+        );
+
+        const total = Math.max(rows.length, 1);
+        bars.replaceChildren();
+        ["Critico", "Alto", "Medio", "Bajo"].forEach((level) => {
+          const count = Number((report.kpis.risk || {})[level] || 0);
+          const row = document.createElement("div");
+          row.innerHTML = `
+            <div class="bar-label"><span>${level}</span><strong>${count}</strong></div>
+            <div class="track"><div class="fill" style="width:${Math.round((count / total) * 100)}%"></div></div>
+          `;
+          bars.appendChild(row);
+        });
+
+        const sorted = [...rows].sort((a, b) => Number(b.bayesian_posterior_probability) - Number(a.bayesian_posterior_probability));
+        table.innerHTML = `
+          <table>
+            <thead><tr><th>Estudiante</th><th>Posterior</th><th>Riesgo</th><th>Evidencia</th></tr></thead>
+            <tbody>
+              ${sorted
+                .map(
+                  (row) => `
+                <tr>
+                  <td><strong>${row.name}</strong><br><small>${row.email}</small></td>
+                  <td>${percent(row.bayesian_posterior_probability)}</td>
+                  <td class="risk-${row.desertion_risk_level}">${row.desertion_risk_level}</td>
+                  <td>${row.desertion_risk_factors}</td>
+                </tr>`,
+                )
+                .join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function runSample() {
+        runButton.disabled = true;
+        statusBox.textContent = "Ejecutando muestra en Apps Script...";
+        const form = {
+          spreadsheetId: document.querySelector("#spreadsheetId").value.trim(),
+          courseId: document.querySelector("#courseId").value.trim(),
+          courseTitle: document.querySelector("#courseTitle").value.trim(),
+        };
+        google.script.run
+          .withSuccessHandler((result) => {
+            runButton.disabled = false;
+            if (!result || !result.ok) {
+              statusBox.textContent = (result && result.error) || "No se pudo ejecutar.";
+              return;
+            }
+            statusBox.textContent = `Muestra ejecutada y guardada en Sheets. Run: ${result.report.run_id}`;
+            render(result.report);
+          })
+          .withFailureHandler((error) => {
+            runButton.disabled = false;
+            statusBox.textContent = error.message || String(error);
+          })
+          .runGasSample(form);
+      }
+
+      runButton.addEventListener("click", runSample);
+      runSample();
+    </script>
+  </body>
+</html>

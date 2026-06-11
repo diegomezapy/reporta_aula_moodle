@@ -10,6 +10,14 @@ Proyecto GAS asociado:
 
 `https://script.google.com/u/0/home/projects/1_wepzWMyJH-DgdhE3Wsu_Ci0QSikfhEcgWJipJdhXAjyYIfEq5up3hz-/edit`
 
+Muestra GAS publica funcional:
+
+`https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec`
+
+Endpoint de verificacion JSON:
+
+`https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec?api=1`
+
 ## Que Extrae
 
 - Participantes del aula con rol estudiante.
@@ -106,6 +114,23 @@ No guardes usuario, contrasena ni tokens en Git.
 
 ## Vinculacion Con Apps Script
 
+### Muestra publica sin permisos sensibles
+
+La carpeta `gas_public_demo/` contiene una Web App GAS de muestra que no pide acceso a Google Sheets, Moodle ni Drive. Sirve para demostrar que la app puede ejecutarse desde Google Apps Script con acceso anonimo antes de migrarla a una cuenta institucional.
+
+URL verificada:
+
+`https://script.google.com/macros/s/AKfycbzzr2X40ajp0AlTeD4jbHNZzsugkGeHzVtEa_s73kZTJQhQuCe0FrHaLg0PAwu7vHa-qg/exec`
+
+Pruebas realizadas el 2026-06-11:
+
+- `/exec?api=1`: HTTP 200, `application/json`.
+- `/exec`: HTTP 200, `text/html`, titulo `Reporta Aula Moodle`.
+
+Esta muestra calcula KPIs y riesgo bayesiano con datos simulados y anonimizados. No escribe en hojas ni almacena credenciales.
+
+### Integracion real con Google Sheets
+
 1. Abrir el proyecto GAS vinculado.
 2. Reemplazar o agregar el contenido de `gas/Code.gs`.
 3. Ejecutar una vez en el editor:
@@ -195,4 +220,5 @@ AUTO_RUN_INTERVAL_MINUTES=10080
 - `docs/manual_usuario.md`
 - `docs/manual_tecnico.md`
 - `docs/diccionario_datos.md`
+- `docs/secuencia_prompts_reporta_aula_moodle_ultima_edicion_20260611.md`
 - `BITACORA.md`

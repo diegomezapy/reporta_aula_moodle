@@ -16,3 +16,4 @@ data/*.jsonl
 secrets/
 tools/
 *.log
+**/.clasp.json
