@@ -1047,3 +1047,113 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 ### Recomendaciones
 
 - En una version futura, permitir elegir explicitamente el estudiante trazado desde la figura sin cambiar de vista.
+
+## 2026-06-11 17:09 - Identidad visual FACEN e interfaz institucional
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Aula Moodle.
+- Ruta local: `/tmp/reporta_aula_sheet_button`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Responsable: Codex.
+- Version: `2026.06.11-institutional-ui`.
+
+### Objetivo de la intervencion
+
+- Buscar logos e identidad visual oficial de FACEN.
+- Ajustar colores, encabezado, KPIs, filtros, paneles y formatos del tablero para abandonar el aspecto simple/prototipo.
+- Mantener legibilidad operativa, responsive movil, version visible y acciones principales.
+
+### Diagnostico inicial
+
+- La app usaba una paleta verde institucional generica que no correspondia a FACEN.
+- El Manual Maestro pide respetar identidad visual, filtros persistentes, botones visibles, KPIs claros, responsive movil y version/cache auditables.
+- La captura movil inicial mostro riesgo de corte horizontal en acciones superiores y pestanas.
+
+### Fuentes revisadas
+
+- Carpeta maestra: `MANUAL_MAESTRO_FORMATOS_FUNCIONES_APPWEB`.
+- Pagina oficial FACEN: `https://www.facen.una.py/manual-de-identidad-visual/`.
+- Manual oficial FACEN PDF: `https://www.facen.una.py/wp-content/uploads/2025/02/Manual-completo.pdf`.
+
+### Acciones realizadas
+
+- Se verifico el padron cromatico oficial FACEN:
+  - Amarillo: `RGB 255 255 0`.
+  - Negro: `RGB 0 0 0`.
+  - Gris: `RGB 114 115 118`.
+  - Blanco como apoyo.
+- Se reemplazo la identidad verde por negro, amarillo FACEN, gris y blanco.
+- Se agrego marca compacta FACEN en el encabezado con flor amarilla estilizada en CSS.
+- Se agrego banda de estado operativo: arquitectura, registros, evidencias y credenciales.
+- Se mejoraron pestanas, filtros, KPIs, paneles, tablas y ruta bayesiana.
+- Se ajusto responsive movil para evitar solapamientos y cortes horizontales.
+- Se actualizo version/cache a `2026.06.11-institutional-ui`.
+- Se actualizaron README, manual tecnico y manual de usuario.
+
+### Archivos modificados
+
+- `index.html`.
+- `assets/pages-app.css`.
+- `assets/pages-app.js`.
+- `service-worker.js`.
+- `README.md`.
+- `docs/manual_usuario.md`.
+- `docs/manual_tecnico.md`.
+- `BITACORA.md`.
+
+### Comandos o scripts ejecutados
+
+- `curl` contra pagina oficial FACEN y PDF de manual de identidad.
+- Render local del PDF oficial con `fitz` para revisar paginas de logo y padron cromatico.
+- `node --check assets/pages-app.js`.
+- `python3 -m compileall app tests`.
+- `/Users/diegobernardomezabogado/reporta_aula_moodle/.venv/bin/python -m pytest`.
+- `git diff --check`.
+- `python3 -m http.server 8074`.
+- `curl` contra HTML, CSS, JS y `service-worker.js` locales.
+- Chrome headless para capturas locales en `data/ui_checks/`.
+
+### Resultados verificados
+
+- Sintaxis JS correcta.
+- Compilacion Python correcta.
+- Pruebas Python: 5 passed, 1 warning LibreSSL/urllib3.
+- `git diff --check`: correcto.
+- HTML local sirve assets `20260611-institutional-ui`.
+- CSS local contiene `--gold: #ffff00`, `brand-flower`, `ops-strip` y estilos mejorados de `bayes-node`.
+- JS local contiene `APP_VERSION = "2026.06.11-institutional-ui"`.
+- Service worker local contiene cache `reporta-aula-moodle-pages-v20260611-institutional-ui`.
+- Captura local escritorio generada: `data/ui_checks/facen_ui_desktop.png`.
+- Capturas locales movil generadas y usadas para corregir acciones superiores y pestanas.
+
+### Errores o incidentes
+
+- No estaban instalados `pdftotext`, `pdfinfo` ni `pdftoppm`; se uso PyMuPDF (`fitz`) disponible.
+- Chrome headless genero ruido de updater/GCM y requirio cerrar procesos auxiliares manualmente.
+- La primera captura movil mostro cortes en botones superiores; se corrigio el responsive.
+
+### Soluciones aplicadas
+
+- Paleta FACEN aplicada a variables CSS globales.
+- Amarillo usado como acento institucional; colores rojo, azul, ambar y verde reservados para datos/riesgo.
+- Acciones superiores y pestanas pasan a una columna en movil para evitar overflow.
+- Filtros pasan a una columna en movil.
+
+### Pendientes
+
+- Commit y push a `origin/diego` y `origin/main`.
+- Verificar GitHub Pages publico con cache-busting.
+- Validar visualmente en navegador real con datos Moodle reales.
+
+### Riesgos
+
+- El logo oficial completo no se incorporo como imagen versionada; se uso una marca compacta inspirada en la identidad para evitar depender de un asset no gestionado.
+- El amarillo FACEN puro requiere usarse como acento, no como fondo dominante, para mantener contraste.
+
+### Recomendaciones
+
+- Solicitar a FACEN un archivo oficial SVG/PNG del logo para reemplazar la marca compacta si corresponde.
+- Mantener la escala de riesgo separada de la marca institucional para no confundir identidad con alerta.

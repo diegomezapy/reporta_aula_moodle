@@ -1,10 +1,10 @@
-const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-bayes-path";
+const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-institutional-ui";
 const APP_SHELL = [
   "./",
   "index.html",
   "manifest.json",
-  "assets/pages-app.css?v=20260611-bayes-path",
-  "assets/pages-app.js?v=20260611-bayes-path",
+  "assets/pages-app.css?v=20260611-institutional-ui",
+  "assets/pages-app.js?v=20260611-institutional-ui",
 ];
 
 self.addEventListener("install", (event) => {

@@ -106,7 +106,9 @@ La app publica muestra la version activa en el footer y en la vista `Corridas`.
 
 Version actual:
 
-`2026.06.11-bayes-path`
+`2026.06.11-institutional-ui`
+
+La interfaz publica aplica la identidad visual oficial FACEN: amarillo `RGB 255 255 0`, negro `RGB 0 0 0`, gris `RGB 114 115 118` y blanco como apoyo. Los colores rojo, azul, ambar y verde se reservan para semaforos de datos y riesgo academico, no para la marca institucional.
 
 El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
 

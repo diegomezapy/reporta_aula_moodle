@@ -68,6 +68,8 @@ El frontend vive en `app/static/`. El tablero consume el payload compacto de `/a
 
 La publicacion GitHub Pages vive en `index.html`, `assets/pages-app.js`, `assets/pages-app.css`, `manifest.json` y `service-worker.js`. Esa version consume GAS por JSONP y usa el mismo contrato de campos `semester_*`, `career_*`, identificadores de estudiantes y variables de tutores/profesores.
 
+La version `2026.06.11-institutional-ui` ajusta la capa visual al manual oficial de identidad FACEN: amarillo `RGB 255 255 0`, negro `RGB 0 0 0`, gris `RGB 114 115 118` y blanco. El amarillo queda como acento institucional; los colores de riesgo siguen separados como escala analitica.
+
 Componentes principales:
 
 - `#kpiGrid`: KPIs generales filtrables.

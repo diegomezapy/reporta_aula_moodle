@@ -8,6 +8,8 @@ Abra la app y autentiquese si el administrador configuro `APP_USERNAME` y `APP_P
 
 La pantalla inicial muestra KPIs generales del aula, actividad en plataforma, participacion evaluativa, actividades con mayor evidencia, un semaforo de riesgo y una dispersion entre acciones Moodle y evaluaciones registradas.
 
+La interfaz usa identidad visual FACEN: amarillo, negro, gris y blanco. Los colores de riesgo se usan solo para interpretar datos academicos y no modifican la marca institucional.
+
 Use la banda de filtros globales para buscar por nombre, correo, id Moodle, documento demo, carrera o tutor, y para limitar el tablero por riesgo, actividad en plataforma, participacion evaluativa o estudiantes con alerta. Los KPIs, graficos y tablas se recalculan con esos filtros.
 
 El control `Modalidad` permite alternar entre:

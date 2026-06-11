@@ -3,17 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#246f5c" />
+    <meta name="theme-color" content="#231F20" />
     <title>Reporta Aula Moodle</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-bayes-path" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-institutional-ui" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
-        <div>
-          <h1>Reporta Aula Moodle</h1>
-          <p id="sheetTarget">GitHub Pages conectado directamente con GAS, Google Sheets y Drive.</p>
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">
+            <span class="brand-flower"></span>
+            <strong>FACEN</strong>
+          </div>
+          <div class="brand-copy">
+            <span class="eyebrow">FACEN - UNA | Analitica Moodle</span>
+            <h1>Reporta Aula Moodle</h1>
+            <p id="sheetTarget">Tablero operativo conectado con GAS, Google Sheets y Drive.</p>
+          </div>
         </div>
         <div class="top-actions">
           <span id="authState" class="pill muted">Demo anonima</span>
@@ -30,6 +37,25 @@
         </div>
       </header>
 
+      <section class="ops-strip" aria-label="Estado operativo">
+        <div>
+          <span>Arquitectura</span>
+          <strong>GitHub Pages + GAS</strong>
+        </div>
+        <div>
+          <span>Registros</span>
+          <strong>Sheets historico</strong>
+        </div>
+        <div>
+          <span>Evidencias</span>
+          <strong>Drive JSON</strong>
+        </div>
+        <div>
+          <span>Credenciales</span>
+          <strong>Carga segura por usuario</strong>
+        </div>
+      </section>
+
       <nav class="tabs" aria-label="Vistas">
         <button class="tab active" type="button" data-tab="dashboard">Tablero</button>
         <button class="tab" type="button" data-tab="risk">Riesgo</button>
@@ -44,6 +70,7 @@
       <section class="filter-band" aria-label="Filtros globales">
         <div class="filter-heading">
           <strong>Filtros</strong>
+          <small>Vista sincronizada</small>
           <span id="filterCount" class="pill muted">0/0</span>
         </div>
         <label>
@@ -404,6 +431,6 @@
         <span id="cacheState">Cache pendiente</span>
       </footer>
     </main>
-    <script src="assets/pages-app.js?v=20260611-bayes-path"></script>
+    <script src="assets/pages-app.js?v=20260611-institutional-ui"></script>
   </body>
 </html>

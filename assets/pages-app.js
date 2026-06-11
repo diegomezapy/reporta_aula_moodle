@@ -1,6 +1,6 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.3_dual_desertion";
-const APP_VERSION = "2026.06.11-bayes-path";
+const APP_VERSION = "2026.06.11-institutional-ui";
 const APP_BUILD_DATE = "2026-06-11";
 const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
 const RISK_MODES = {
@@ -183,11 +183,11 @@ function labelClass(label) {
 
 function riskColor(label) {
   const clean = String(label || "").toLowerCase();
-  if (clean.includes("critico")) return "#a13b35";
-  if (clean.includes("alto")) return "#c46d1e";
-  if (clean.includes("medio")) return "#5b6fba";
-  if (clean.includes("bajo")) return "#22724f";
-  return "#879184";
+  if (clean.includes("critico")) return "#b42318";
+  if (clean.includes("alto")) return "#b7791f";
+  if (clean.includes("medio")) return "#1d4ed8";
+  if (clean.includes("bajo")) return "#0b6b45";
+  return "#727376";
 }
 
 function kpi(label, value, sub, tone = "") {
@@ -1372,6 +1372,7 @@ function renderAudit() {
     ["2026-06-11", "Drive preparado para evidencias JSON desde GAS"],
     ["2026-06-11", `Control visible de version ${APP_VERSION}`],
     ["2026-06-11", "Modelo con modalidades semestre y carrera e identificadores anonimizados"],
+    ["2026-06-11", "Interfaz ajustada a identidad visual FACEN: amarillo, negro, gris y blanco"],
   ];
   els.auditCount.textContent = number(rows.length);
   els.auditTable.replaceChildren();
