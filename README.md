@@ -163,6 +163,16 @@ GitHub Pages solo sirve archivos estaticos. Por eso el repositorio incluye una p
 
 La app completa puede desplegarse en Render, Railway, Fly.io, VPS o cualquier servicio que ejecute FastAPI con variables de entorno. En produccion, usar HTTPS y credenciales desde secretos del proveedor.
 
+El repositorio incluye `render.yaml` para crear el servicio desde Render Blueprint:
+
+`https://render.com/deploy?repo=https://github.com/diegomezapy/reporta_aula_moodle`
+
+Render debe usar:
+
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Health check: `/healthz`
+
 Comando:
 
 ```bash

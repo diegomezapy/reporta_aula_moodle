@@ -10,7 +10,9 @@ __pycache__/
 data/runs/*
 !data/runs/.gitkeep
 data/ui_checks/
+data/TEMP_TUNNEL_CREDENTIALS.txt
 data/*.json
 data/*.jsonl
 secrets/
+tools/
 *.log

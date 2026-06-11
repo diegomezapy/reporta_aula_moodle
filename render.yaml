@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: reporta-aula-moodle
+    runtime: python
+    repo: https://github.com/diegomezapy/reporta_aula_moodle.git
+    branch: diego
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: APP_USERNAME
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
+      - key: MOODLE_BASE_URL
+        value: https://www.virtual.facen.una.py/gradofacen
+      - key: MOODLE_COURSE_ID
+        value: "1718"
+      - key: MOODLE_USERNAME
+        sync: false
+      - key: MOODLE_PASSWORD
+        sync: false
+      - key: GOOGLE_SPREADSHEET_ID
+        value: 1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8
+      - key: GAS_WEBAPP_URL
+        sync: false
+      - key: GAS_SHARED_SECRET
+        sync: false
+      - key: DATA_DIR
+        value: data/runs
+      - key: AUTOMATION_CONFIG_FILE
+        value: data/automation_config.json
+      - key: ACCESS_LOG_FILE
+        value: data/access_log.jsonl
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "35"
+      - key: AUTO_RUN_ENABLED
+        value: "false"
+      - key: AUTO_RUN_INTERVAL_MINUTES
+        value: "10080"

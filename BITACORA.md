@@ -106,3 +106,26 @@ Al abrir la URL de GitHub Pages se recibia el mensaje `File not found`. La rama 
 - Verificar la URL de GitHub Pages una vez que GitHub procese el nuevo commit.
 - Desplegar el backend FastAPI en hosting persistente para habilitar extracciones reales desde la URL publica.
 
+## 2026-06-10 - Preparacion de despliegue FastAPI en Render
+
+### Objetivo
+
+Preparar el repositorio para que el backend FastAPI pueda desplegarse como servicio web real, separado de GitHub Pages.
+
+### Acciones Realizadas
+
+- Se agrego `render.yaml` en la raiz del repositorio.
+- El servicio Render queda definido como `reporta-aula-moodle`, runtime `python`, rama `diego`, plan `free`.
+- Se definieron comandos:
+  - `pip install -r requirements.txt`
+  - `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Se agrego endpoint `/healthz` para health checks sin autenticacion.
+- Se agrego enlace `Deploy to Render` en la portada publica de GitHub Pages.
+- Se documentaron variables de entorno sensibles como `sync: false` para que Render las solicite en el dashboard y no queden versionadas.
+
+### Pendientes
+
+- Crear el servicio en Render desde el Blueprint.
+- Configurar secretos en Render: `APP_USERNAME`, `APP_PASSWORD`, `MOODLE_USERNAME`, `MOODLE_PASSWORD`, y opcionalmente `GAS_WEBAPP_URL`/`GAS_SHARED_SECRET`.
+- Verificar la URL `onrender.com` y luego redirigir GitHub Pages hacia esa URL si se desea acceso directo.
+

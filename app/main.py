@@ -38,6 +38,9 @@ app.mount("/static", StaticFiles(directory=Path(__file__).parent / "static"), na
 
 @app.middleware("http")
 async def audit_and_protect_private_app(request: Request, call_next):
+    if request.url.path == "/healthz":
+        return await call_next(request)
+
     username = request.headers.get("x-forwarded-user") or request.headers.get("x-user-email") or "sin_autenticacion"
     if settings.app_username and settings.app_password:
         username, password = _basic_credentials(request)
@@ -190,6 +193,11 @@ def start_automation() -> None:
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(Path(__file__).parent / "static" / "index.html")
+
+
+@app.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.get("/api/defaults")
