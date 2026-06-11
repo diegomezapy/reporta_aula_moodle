@@ -568,6 +568,9 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - Servidor local `http://127.0.0.1:8067/`: HTML sirve `Verificar GAS`, `Generar extraccion` y assets `20260611-generate-extraction`.
 - Asset JS local `assets/pages-app.js?v=20260611-generate-extraction`: HTTP 200 e incluye `runGasExtraction`, `api: "runSample"` y estado `Extraccion generada`.
 - `service-worker.js` local: HTTP 200 con cache `reporta-aula-moodle-pages-v20260611-generate-extraction`.
+- GitHub Pages publico `https://diegomezapy.github.io/reporta_aula_moodle/`: HTML sirve `Verificar GAS`, `Generar extraccion` y assets `20260611-generate-extraction`.
+- Asset JS publico `assets/pages-app.js?v=20260611-generate-extraction`: HTTP 200 e incluye `runGasExtraction`, `api: "runSample"` y estado `Extraccion generada`.
+- `service-worker.js` publico: HTTP 200 con cache `reporta-aula-moodle-pages-v20260611-generate-extraction`.
 - Corrida generada:
   - `gas-demo-20260611-144837`.
 - Registros devueltos:
