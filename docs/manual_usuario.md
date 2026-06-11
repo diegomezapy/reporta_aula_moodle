@@ -6,11 +6,23 @@ Abra la app y autentiquese si el administrador configuro `APP_USERNAME` y `APP_P
 
 ## Tablero
 
-La pantalla inicial muestra KPIs generales del aula, actividad en plataforma, participacion evaluativa y actividades con mayor evidencia.
+La pantalla inicial muestra KPIs generales del aula, actividad en plataforma, participacion evaluativa, actividades con mayor evidencia, un semaforo de riesgo y una dispersion entre acciones Moodle y evaluaciones registradas.
+
+Use la banda de filtros globales para buscar por nombre, correo o id Moodle, y para limitar el tablero por riesgo, actividad en plataforma, participacion evaluativa o estudiantes con alerta. Los KPIs, graficos y tablas se recalculan con esos filtros.
 
 ## Riesgo
 
-La vista `Riesgo` ordena estudiantes por probabilidad heuristica de desercion. El calculo usa actividad en plataforma, evaluaciones, foros, ultimo acceso y senal agregada de acompanamiento tutorial. Es una priorizacion de seguimiento, no una decision automatica.
+La vista `Riesgo` ordena estudiantes por probabilidad bayesiana de desercion. El calculo usa actividad en plataforma, evaluaciones, foros, ultimo acceso, total del curso y senal agregada de acompanamiento tutorial.
+
+La vista incluye:
+
+- KPIs del modelo: version, prior medio, posterior medio, maximo posterior y evidencias aplicadas.
+- Distribucion por nivel de riesgo.
+- Bandas de probabilidad.
+- Priorizacion por estudiante.
+- Tabla de evidencia bayesiana con prior, posterior y log LR.
+
+Es una priorizacion de seguimiento, no una decision automatica.
 
 ## Estudiantes
 

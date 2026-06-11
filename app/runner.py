@@ -6,9 +6,15 @@ from typing import Optional, Tuple
 from app.config import Settings
 from app.models import ReportPackage, RunRequest
 from app.moodle_client import MoodleClient
-from app.reporting import apply_desertion_risk, build_activity_summary, build_student_summaries, build_tutor_summary
+from app.reporting import (
+    apply_desertion_risk,
+    build_activity_summary,
+    build_student_summaries,
+    build_tutor_summary,
+    prior_map_from_previous_summaries,
+)
 from app.sheets import sync_with_google
-from app.storage import write_report
+from app.storage import latest_completed_report, write_report
 
 
 def make_run_id() -> str:
@@ -35,7 +41,11 @@ def run_extraction(run_id: str, request: RunRequest, settings: Settings) -> Tupl
     tutor_participation_rows = client.get_tutor_participation_rows(course_id, activities) if request.include_tutor_participation else []
     tutor_summary = build_tutor_summary(tutor_participation_rows, len(activities))
     summaries = build_student_summaries(participants, grade_rows, participation_rows)
-    summaries = apply_desertion_risk(summaries, tutor_summary)
+    previous_report = latest_completed_report(settings.data_dir)
+    previous_priors = {}
+    if previous_report and previous_report.course_id == course_id:
+        previous_priors = prior_map_from_previous_summaries(previous_report.summaries)
+    summaries = apply_desertion_risk(summaries, tutor_summary, previous_priors)
     activity_summary = build_activity_summary(participation_rows)
     tutor_activity_summary = build_activity_summary(tutor_participation_rows)
 

@@ -1,4 +1,5 @@
 .DS_Store
+desktop.ini
 .env
 .venv/
 __pycache__/
@@ -8,6 +9,7 @@ __pycache__/
 .ruff_cache/
 data/runs/*
 !data/runs/.gitkeep
+data/ui_checks/
 data/*.json
 data/*.jsonl
 secrets/

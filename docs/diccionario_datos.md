@@ -28,7 +28,13 @@
 | `grade_cells_with_value` | Celdas evaluativas con valor numerico. |
 | `platform_level` | Nivel operativo de actividad en plataforma. |
 | `evaluative_level` | Nivel de participacion evaluativa. |
-| `desertion_probability` | Probabilidad heuristica entre 0 y 1. |
+| `risk_model_version` | Version del modelo de riesgo aplicado. |
+| `heuristic_probability` | Probabilidad heuristica de referencia, conservada para comparacion. |
+| `bayesian_prior_probability` | Prior usado para la corrida actual. |
+| `bayesian_posterior_probability` | Posterior bayesiano estimado con la evidencia de la corrida. |
+| `bayesian_log_likelihood_ratio` | Suma logaritmica de razones de verosimilitud aplicadas. |
+| `bayesian_evidence_factors` | Evidencias que actualizaron el prior. |
+| `desertion_probability` | Probabilidad operativa final entre 0 y 1; actualmente coincide con el posterior bayesiano redondeado. |
 | `desertion_risk_level` | Bajo, Medio, Alto o Critico. |
 | `desertion_risk_factors` | Factores que explican la priorizacion. |
 | `tutor_activity_signal` | Senal agregada de acompanamiento tutorial. |

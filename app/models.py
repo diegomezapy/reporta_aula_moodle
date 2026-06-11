@@ -68,6 +68,12 @@ class StudentSummary(BaseModel):
     evaluative_level: str = "Sin evaluaciones"
     follow_up_alert: bool = False
     tutor_activity_signal: str = "Sin dato"
+    risk_model_version: str = "heuristic_v1"
+    heuristic_probability: Optional[float] = None
+    bayesian_prior_probability: Optional[float] = None
+    bayesian_posterior_probability: Optional[float] = None
+    bayesian_log_likelihood_ratio: Optional[float] = None
+    bayesian_evidence_factors: list[str] = Field(default_factory=list)
     desertion_probability: float = 0.0
     desertion_risk_level: str = "Sin dato"
     desertion_risk_factors: list[str] = Field(default_factory=list)

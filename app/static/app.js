@@ -15,6 +15,15 @@ const tabs = document.querySelectorAll(".tab");
 const views = document.querySelectorAll(".view");
 const intervalPreset = document.querySelector("#intervalPreset");
 const runAutomationNow = document.querySelector("#runAutomationNow");
+const globalFilters = {
+  search: document.querySelector("#globalSearch"),
+  risk: document.querySelector("#riskFilter"),
+  platform: document.querySelector("#platformFilter"),
+  evaluative: document.querySelector("#evaluativeFilter"),
+  alertOnly: document.querySelector("#alertOnly"),
+  clear: document.querySelector("#clearFilters"),
+  count: document.querySelector("#filterCount"),
+};
 
 const dashboard = {
   courseTitle: document.querySelector("#courseTitle"),
@@ -29,6 +38,11 @@ const dashboard = {
   evaluativeTotal: document.querySelector("#evaluativeTotal"),
   activityBars: document.querySelector("#activityBars"),
   activityCount: document.querySelector("#activityCount"),
+  riskDonut: document.querySelector("#riskDonut"),
+  riskDonutLegend: document.querySelector("#riskDonutLegend"),
+  riskDonutTotal: document.querySelector("#riskDonutTotal"),
+  scatterPlot: document.querySelector("#scatterPlot"),
+  scatterTotal: document.querySelector("#scatterTotal"),
 };
 
 const risk = {
@@ -36,6 +50,11 @@ const risk = {
   highCount: document.querySelector("#riskHighCount"),
   bars: document.querySelector("#riskBars"),
   table: document.querySelector("#riskTable"),
+  modelKpis: document.querySelector("#modelKpis"),
+  probabilityBandTotal: document.querySelector("#probabilityBandTotal"),
+  probabilityBands: document.querySelector("#probabilityBands"),
+  evidenceCount: document.querySelector("#evidenceCount"),
+  evidenceTable: document.querySelector("#evidenceTable"),
 };
 
 const students = {
@@ -122,6 +141,9 @@ function pct(value, total) {
 function labelClass(label) {
   const clean = String(label || "").toLowerCase();
   if (clean.includes("sin dato")) return "neutral";
+  if (clean.includes("70%")) return "bad";
+  if (clean.includes("50%")) return "warn";
+  if (clean.includes("30%")) return clean.includes("<") ? "good" : "mid";
   if (clean.includes("critico") || clean.includes("alto")) return "bad";
   if (clean.includes("alta")) return "good";
   if (clean.includes("media") || clean.includes("medio")) return "mid";
@@ -129,6 +151,88 @@ function labelClass(label) {
   if (clean.includes("bajo")) return "good";
   if (clean.includes("sin")) return "bad";
   return "neutral";
+}
+
+function riskMatchesFilter(row, filter) {
+  const level = String(row.desertion_risk_level || "").toLowerCase();
+  if (filter === "all") return true;
+  if (filter === "critical-high") return ["critico", "alto"].includes(level);
+  if (filter === "critical") return level === "critico";
+  if (filter === "high") return level === "alto";
+  if (filter === "medium") return level === "medio";
+  if (filter === "low") return level === "bajo";
+  return true;
+}
+
+function globalFilteredSummaries() {
+  const rows = activeReport?.summaries || [];
+  const query = globalFilters.search.value.trim().toLowerCase();
+  const riskFilter = globalFilters.risk.value;
+  const platformFilter = globalFilters.platform.value;
+  const evaluativeFilter = globalFilters.evaluative.value;
+  const alertOnly = globalFilters.alertOnly.checked;
+  const filtered = rows.filter((row) => {
+    const haystack = `${row.name || ""} ${row.email || ""} ${row.user_id || ""}`.toLowerCase();
+    return (
+      (!query || haystack.includes(query)) &&
+      riskMatchesFilter(row, riskFilter) &&
+      (platformFilter === "all" || row.platform_level === platformFilter) &&
+      (evaluativeFilter === "all" || row.evaluative_level === evaluativeFilter) &&
+      (!alertOnly || row.follow_up_alert)
+    );
+  });
+  globalFilters.count.textContent = `${filtered.length}/${rows.length}`;
+  return filtered;
+}
+
+function clearGlobalFilters() {
+  globalFilters.search.value = "";
+  globalFilters.risk.value = "all";
+  globalFilters.platform.value = "all";
+  globalFilters.evaluative.value = "all";
+  globalFilters.alertOnly.checked = false;
+  rerenderActiveReport();
+}
+
+function rerenderActiveReport() {
+  if (activeReport) renderDashboard(activeReport);
+}
+
+function average(rows, getter) {
+  const values = rows.map(getter).map(Number).filter((value) => Number.isFinite(value));
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function maxValue(rows, getter) {
+  const values = rows.map(getter).map(Number).filter((value) => Number.isFinite(value));
+  return values.length ? Math.max(...values) : 0;
+}
+
+function riskColor(label) {
+  const clean = String(label || "").toLowerCase();
+  if (clean.includes("critico")) return "#a13b35";
+  if (clean.includes("alto")) return "#c46d1e";
+  if (clean.includes("medio")) return "#5b6fba";
+  if (clean.includes("bajo")) return "#22724f";
+  return "#879184";
+}
+
+function probabilityBands(rows) {
+  const bands = {
+    ">= 70%": 0,
+    "50% - 69%": 0,
+    "30% - 49%": 0,
+    "< 30%": 0,
+  };
+  rows.forEach((row) => {
+    const value = Number(row.desertion_probability || 0);
+    if (value >= 0.7) bands[">= 70%"] += 1;
+    else if (value >= 0.5) bands["50% - 69%"] += 1;
+    else if (value >= 0.3) bands["30% - 49%"] += 1;
+    else bands["< 30%"] += 1;
+  });
+  return bands;
 }
 
 function fileLink(runId, filename) {
@@ -175,6 +279,100 @@ function renderBars(target, dist, order) {
   });
 }
 
+function renderDonut(target, legendTarget, dist, order) {
+  target.replaceChildren();
+  legendTarget.replaceChildren();
+  const total = order.reduce((sum, label) => sum + Number(dist[label] || 0), 0);
+  let cursor = 0;
+  const segments = order
+    .map((label) => {
+      const value = Number(dist[label] || 0);
+      const start = cursor;
+      const end = total ? cursor + (value / total) * 360 : cursor;
+      cursor = end;
+      return `${riskColor(label)} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`;
+    })
+    .join(", ");
+  const donut = document.createElement("div");
+  donut.className = "donut";
+  donut.style.background = total ? `conic-gradient(${segments})` : "#eef1eb";
+  donut.innerHTML = `<div><strong>${number(total)}</strong><span>estudiantes</span></div>`;
+  target.appendChild(donut);
+  order.forEach((label) => {
+    const value = Number(dist[label] || 0);
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `<span style="background:${riskColor(label)}"></span><strong>${escapeHtml(label)}</strong><em>${number(value)}</em>`;
+    legendTarget.appendChild(item);
+  });
+}
+
+function renderScatter(target, rows) {
+  target.replaceChildren();
+  const maxActions = Math.max(maxValue(rows, (row) => row.actions_registered), 1);
+  const maxGrades = Math.max(maxValue(rows, (row) => row.grade_cells_with_value), 1);
+  const plot = document.createElement("div");
+  plot.className = "scatter-inner";
+  rows.forEach((row) => {
+    const point = document.createElement("button");
+    point.type = "button";
+    point.className = `scatter-point ${labelClass(row.desertion_risk_level)}`;
+    const x = Math.min(96, Math.max(4, (Number(row.actions_registered || 0) / maxActions) * 92 + 4));
+    const y = 96 - Math.min(92, Math.max(4, (Number(row.grade_cells_with_value || 0) / maxGrades) * 92));
+    point.style.left = `${x}%`;
+    point.style.top = `${y}%`;
+    point.title = `${row.name || "Sin nombre"} | acciones ${row.actions_registered || 0} | evaluaciones ${row.grade_cells_with_value || 0} | riesgo ${probability(row.desertion_probability)}`;
+    point.addEventListener("click", () => {
+      selectedStudentKey = studentKey(row);
+      switchTab("students");
+      renderStudents();
+    });
+    plot.appendChild(point);
+  });
+  target.appendChild(plot);
+}
+
+function renderModelKpis(rows) {
+  const model = rows.find((row) => row.risk_model_version)?.risk_model_version || "Sin modelo";
+  const avgPosterior = average(rows, (row) => row.bayesian_posterior_probability ?? row.desertion_probability);
+  const avgPrior = average(rows, (row) => row.bayesian_prior_probability);
+  const maxPosterior = maxValue(rows, (row) => row.bayesian_posterior_probability ?? row.desertion_probability);
+  const evidenceItems = rows.reduce((sum, row) => sum + (row.bayesian_evidence_factors || row.desertion_risk_factors || []).length, 0);
+  risk.modelKpis.replaceChildren(
+    kpi("Modelo", model, "version aplicada"),
+    kpi("Prior medio", probability(avgPrior), "antes de evidencia"),
+    kpi("Posterior medio", probability(avgPosterior), "riesgo actual"),
+    kpi("Maximo posterior", probability(maxPosterior), "caso mas critico", maxPosterior >= 0.7 ? "bad" : maxPosterior >= 0.5 ? "warn" : "good"),
+    kpi("Evidencias", number(evidenceItems), "factores auditables"),
+  );
+}
+
+function renderEvidenceTable(rows) {
+  risk.evidenceTable.replaceChildren();
+  const visible = [...rows]
+    .sort((a, b) => Number(b.desertion_probability) - Number(a.desertion_probability))
+    .slice(0, 12);
+  risk.evidenceCount.textContent = number(visible.length);
+  visible.forEach((row) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "evidence-row";
+    const factors = row.bayesian_evidence_factors || row.desertion_risk_factors || [];
+    item.innerHTML = `
+      <span class="student-main"><strong>${escapeHtml(row.name, "Sin nombre")}</strong><small>${escapeHtml(factors.slice(0, 3).join("; "), "Sin factores")}</small></span>
+      <span><small>prior</small><strong>${probability(row.bayesian_prior_probability)}</strong></span>
+      <span><small>posterior</small><strong>${probability(row.bayesian_posterior_probability ?? row.desertion_probability)}</strong></span>
+      <span><small>log LR</small><strong>${escapeHtml(row.bayesian_log_likelihood_ratio ?? "--")}</strong></span>
+    `;
+    item.addEventListener("click", () => {
+      selectedStudentKey = studentKey(row);
+      switchTab("students");
+      renderStudents();
+    });
+    risk.evidenceTable.appendChild(item);
+  });
+}
+
 function renderActivityList(target, rows) {
   const visibleRows = [...(rows || [])]
     .filter((row) => Number(row.count) > 0)
@@ -198,13 +396,16 @@ function renderActivityList(target, rows) {
 
 function renderDashboard(report) {
   activeReport = report;
-  const summaries = report.summaries || [];
-  const participantsCount = report.participants_count || summaries.length;
+  const allSummaries = report.summaries || [];
+  const summaries = globalFilteredSummaries();
+  const participantsCount = report.participants_count || allSummaries.length;
   const totalActions = summaries.reduce((sum, row) => sum + Number(row.actions_registered || 0), 0);
   const forumPosts = summaries.reduce((sum, row) => sum + Number(row.forum_posts || 0), 0);
   const alerts = summaries.filter((row) => row.follow_up_alert).length;
   const highRisk = summaries.filter((row) => ["Critico", "Alto"].includes(row.desertion_risk_level)).length;
   const graded = summaries.filter((row) => Number(row.grade_cells_with_value || 0) > 0).length;
+  const avgRisk = average(summaries, (row) => row.desertion_probability);
+  const noEvidence = summaries.filter((row) => row.platform_level === "Sin evidencia" || row.evaluative_level === "Sin evaluaciones").length;
   const tutorSummary = report.tutor_summary || {};
 
   dashboard.courseTitle.textContent = report.course_title || "Aula Moodle";
@@ -214,17 +415,24 @@ function renderDashboard(report) {
   dashboard.moodleBase.textContent = report.moodle_base_url || "Moodle";
 
   dashboard.kpiGrid.replaceChildren(
-    kpi("Estudiantes", number(participantsCount), "matriculados con rol estudiante"),
+    kpi("Estudiantes", `${number(summaries.length)}/${number(participantsCount)}`, "filtrados / matriculados"),
     kpi("Acciones", number(totalActions), "registros de participacion"),
     kpi("Foros", number(forumPosts), "mensajes o interacciones"),
     kpi("Con calificación", number(graded), "con evidencia evaluativa", "good"),
     kpi("Alertas", number(alerts), "requieren seguimiento", alerts ? "warn" : "good"),
-    kpi("Riesgo alto", number(highRisk), "probabilidad de desercion", highRisk ? "bad" : "good"),
+    kpi("Riesgo medio", probability(avgRisk), "posterior promedio", avgRisk >= 0.7 ? "bad" : avgRisk >= 0.5 ? "warn" : "good"),
+    kpi("Riesgo alto", number(highRisk), "critico o alto", highRisk ? "bad" : "good"),
+    kpi("Sin evidencia", number(noEvidence), "requieren verificacion", noEvidence ? "warn" : "good"),
     kpi("Tutoría", number(tutorSummary.actions_registered), tutorSummary.participation_level || "sin dato", labelClass(tutorSummary.participation_level)),
   );
 
   dashboard.platformTotal.textContent = number(summaries.length);
   dashboard.evaluativeTotal.textContent = number(summaries.length);
+  dashboard.riskDonutTotal.textContent = number(summaries.length);
+  dashboard.scatterTotal.textContent = number(summaries.length);
+  const riskSummary = distribution(summaries, "desertion_risk_level");
+  renderDonut(dashboard.riskDonut, dashboard.riskDonutLegend, riskSummary, ["Critico", "Alto", "Medio", "Bajo", "Sin dato"]);
+  renderScatter(dashboard.scatterPlot, summaries);
   renderBars(dashboard.platformBars, distribution(summaries, "platform_level"), ["Alta", "Media", "Baja", "Sin evidencia"]);
   renderBars(dashboard.evaluativeBars, distribution(summaries, "evaluative_level"), ["Alta", "Media", "Baja", "Sin evaluaciones"]);
   dashboard.activityCount.textContent = String((report.activity_summary || []).length);
@@ -235,12 +443,16 @@ function renderDashboard(report) {
 }
 
 function renderRisk(report) {
-  const summaries = report.summaries || [];
-  const riskSummary = report.desertion_risk_summary || distribution(summaries, "desertion_risk_level");
+  const summaries = globalFilteredSummaries();
+  const riskSummary = distribution(summaries, "desertion_risk_level");
   const high = (riskSummary.Critico || 0) + (riskSummary.Alto || 0);
   risk.total.textContent = number(summaries.length);
   risk.highCount.textContent = number(high);
   renderBars(risk.bars, riskSummary, ["Critico", "Alto", "Medio", "Bajo", "Sin dato"]);
+  risk.probabilityBandTotal.textContent = number(summaries.length);
+  renderBars(risk.probabilityBands, probabilityBands(summaries), [">= 70%", "50% - 69%", "30% - 49%", "< 30%"]);
+  renderModelKpis(summaries);
+  renderEvidenceTable(summaries);
   risk.table.replaceChildren();
   summaries
     .filter((row) => row.desertion_risk_level)
@@ -278,7 +490,7 @@ function renderTutor(report) {
 }
 
 function renderStudents() {
-  const rows = activeReport?.summaries || [];
+  const rows = globalFilteredSummaries();
   const query = students.search.value.trim().toLowerCase();
   const filter = students.filter.value;
   const filtered = rows.filter((row) => {
@@ -321,6 +533,7 @@ function renderStudents() {
 function selectStudent(row, updateKey = true) {
   if (updateKey) selectedStudentKey = studentKey(row);
   document.querySelectorAll(".student-row").forEach((item) => item.classList.toggle("selected", item.dataset.key === studentKey(row)));
+  const evidence = row.bayesian_evidence_factors || row.desertion_risk_factors || [];
   students.detailAlert.textContent = row.follow_up_alert ? "Seguimiento" : "OK";
   students.detailAlert.className = `pill ${row.follow_up_alert ? "error" : "muted"}`;
   students.detail.innerHTML = `
@@ -335,13 +548,17 @@ function selectStudent(row, updateKey = true) {
       <div><span>Evaluaciones</span><strong>${number(row.grade_cells_with_value)}</strong></div>
       <div><span>Total curso</span><strong>${escapeHtml(row.course_total, "--")}</strong></div>
       <div><span>ID Moodle</span><strong>${escapeHtml(row.user_id, "--")}</strong></div>
+      <div><span>Prior bayesiano</span><strong>${probability(row.bayesian_prior_probability)}</strong></div>
+      <div><span>Posterior</span><strong>${probability(row.bayesian_posterior_probability ?? row.desertion_probability)}</strong></div>
+      <div><span>Log LR</span><strong>${escapeHtml(row.bayesian_log_likelihood_ratio ?? "--")}</strong></div>
+      <div><span>Modelo</span><strong>${escapeHtml(row.risk_model_version, "--")}</strong></div>
       <div><span>Riesgo</span><strong>${probability(row.desertion_probability)} · ${escapeHtml(row.desertion_risk_level, "--")}</strong></div>
       <div><span>Tutoría</span><strong>${escapeHtml(row.tutor_activity_signal, "--")}</strong></div>
     </div>
     <div class="student-badges">
       <span class="pill ${labelClass(row.platform_level)}">${escapeHtml(row.platform_level)}</span>
       <span class="pill ${labelClass(row.evaluative_level)}">${escapeHtml(row.evaluative_level)}</span>
-      <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml((row.desertion_risk_factors || [])[0], "Sin factor crítico")}</span>
+      <span class="pill ${labelClass(row.desertion_risk_level)}">${escapeHtml(evidence[0], "Sin factor critico")}</span>
     </div>
   `;
 }
@@ -376,8 +593,14 @@ function renderNoReport() {
   dashboard.platformBars.replaceChildren();
   dashboard.evaluativeBars.replaceChildren();
   dashboard.activityBars.replaceChildren();
+  dashboard.riskDonut.replaceChildren();
+  dashboard.riskDonutLegend.replaceChildren();
+  dashboard.scatterPlot.replaceChildren();
+  risk.modelKpis.replaceChildren();
   risk.bars.replaceChildren();
+  risk.probabilityBands.replaceChildren();
   risk.table.replaceChildren();
+  risk.evidenceTable.replaceChildren();
   tutor.kpis.replaceChildren();
   tutor.activityBars.replaceChildren();
   students.table.replaceChildren();
@@ -542,6 +765,12 @@ refreshRuns.addEventListener("click", async () => {
 });
 students.search.addEventListener("input", renderStudents);
 students.filter.addEventListener("change", renderStudents);
+globalFilters.search.addEventListener("input", rerenderActiveReport);
+globalFilters.risk.addEventListener("change", rerenderActiveReport);
+globalFilters.platform.addEventListener("change", rerenderActiveReport);
+globalFilters.evaluative.addEventListener("change", rerenderActiveReport);
+globalFilters.alertOnly.addEventListener("change", rerenderActiveReport);
+globalFilters.clear.addEventListener("click", clearGlobalFilters);
 automationForm.addEventListener("submit", saveAutomation);
 intervalPreset.addEventListener("change", () => {
   if (intervalPreset.value !== "custom") automationForm.elements.interval_minutes.value = intervalPreset.value;

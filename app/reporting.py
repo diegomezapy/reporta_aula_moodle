@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 from typing import Optional, Tuple, Union
 
+from app.bayesian import BAYESIAN_MODEL_VERSION, estimate_desertion_probability
 from app.models import Participant, ParticipationRow, StudentSummary, TableRow, TutorSummary
 from app.moodle_client import key_norm
 
@@ -141,9 +142,24 @@ def build_tutor_summary(tutor_rows: list[ParticipationRow], activities_count: in
     )
 
 
-def apply_desertion_risk(summaries: list[StudentSummary], tutor_summary: TutorSummary) -> list[StudentSummary]:
+def prior_map_from_previous_summaries(summaries: list[StudentSummary]) -> dict[str, float]:
+    priors: dict[str, float] = {}
+    for summary in summaries:
+        key = _identity(summary.user_id, summary.name)
+        probability = summary.bayesian_posterior_probability or summary.desertion_probability
+        if key and probability:
+            priors[key] = probability
+    return priors
+
+
+def apply_desertion_risk(
+    summaries: list[StudentSummary],
+    tutor_summary: TutorSummary,
+    prior_by_student: Optional[dict[str, float]] = None,
+) -> list[StudentSummary]:
     enriched: list[StudentSummary] = []
     tutor_signal = tutor_summary.participation_level
+    prior_by_student = prior_by_student or {}
     for summary in summaries:
         score = 0.08
         factors: list[str] = []
@@ -191,7 +207,10 @@ def apply_desertion_risk(summaries: list[StudentSummary], tutor_summary: TutorSu
         elif tutor_summary.activity_coverage >= 0.5:
             score -= 0.03
 
-        probability = max(0.02, min(0.98, score))
+        heuristic_probability = max(0.02, min(0.98, score))
+        prior = prior_by_student.get(_identity(summary.user_id, summary.name))
+        bayesian = estimate_desertion_probability(summary, tutor_summary, prior)
+        probability = bayesian.posterior_probability
         level = "Bajo"
         if probability >= 0.7:
             level = "Critico"
@@ -205,9 +224,15 @@ def apply_desertion_risk(summaries: list[StudentSummary], tutor_summary: TutorSu
                 update={
                     "follow_up_alert": summary.follow_up_alert or probability >= 0.5,
                     "tutor_activity_signal": tutor_signal,
+                    "risk_model_version": BAYESIAN_MODEL_VERSION,
+                    "heuristic_probability": round(heuristic_probability, 2),
+                    "bayesian_prior_probability": bayesian.prior_probability,
+                    "bayesian_posterior_probability": bayesian.posterior_probability,
+                    "bayesian_log_likelihood_ratio": bayesian.log_likelihood_ratio,
+                    "bayesian_evidence_factors": bayesian.evidence_factors[:8],
                     "desertion_probability": round(probability, 2),
                     "desertion_risk_level": level,
-                    "desertion_risk_factors": factors[:6],
+                    "desertion_risk_factors": bayesian.evidence_factors[:6] or factors[:6],
                 }
             )
         )

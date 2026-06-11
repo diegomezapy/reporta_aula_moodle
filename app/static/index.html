@@ -31,6 +31,53 @@
         <button class="tab" type="button" data-tab="audit">Auditoría</button>
       </nav>
 
+      <section class="filter-band" aria-label="Filtros globales">
+        <div class="filter-heading">
+          <strong>Filtros</strong>
+          <span id="filterCount" class="pill muted">0/0</span>
+        </div>
+        <label>
+          Buscar
+          <input id="globalSearch" type="search" placeholder="Nombre, correo o ID" />
+        </label>
+        <label>
+          Riesgo
+          <select id="riskFilter">
+            <option value="all">Todos</option>
+            <option value="critical-high">Critico y alto</option>
+            <option value="critical">Critico</option>
+            <option value="high">Alto</option>
+            <option value="medium">Medio</option>
+            <option value="low">Bajo</option>
+          </select>
+        </label>
+        <label>
+          Plataforma
+          <select id="platformFilter">
+            <option value="all">Todas</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baja">Baja</option>
+            <option value="Sin evidencia">Sin evidencia</option>
+          </select>
+        </label>
+        <label>
+          Evaluacion
+          <select id="evaluativeFilter">
+            <option value="all">Todas</option>
+            <option value="Alta">Alta</option>
+            <option value="Media">Media</option>
+            <option value="Baja">Baja</option>
+            <option value="Sin evaluaciones">Sin evaluaciones</option>
+          </select>
+        </label>
+        <label class="checkline block slim">
+          <input id="alertOnly" type="checkbox" />
+          Solo alertas
+        </label>
+        <button id="clearFilters" class="secondary" type="button">Limpiar</button>
+      </section>
+
       <section id="dashboardView" class="view active">
         <section class="dashboard-head">
           <div class="panel course-panel">
@@ -55,6 +102,27 @@
         <section id="kpiGrid" class="kpi-grid"></section>
 
         <section class="analytics-grid">
+          <article class="panel risk-donut-panel">
+            <div class="panel-head">
+              <h2>Semaforo De Riesgo</h2>
+              <span id="riskDonutTotal" class="pill muted">0</span>
+            </div>
+            <div id="riskDonut" class="donut-wrap"></div>
+            <div id="riskDonutLegend" class="legend-grid"></div>
+          </article>
+
+          <article class="panel scatter-panel">
+            <div class="panel-head">
+              <h2>Participacion Vs Evaluacion</h2>
+              <span id="scatterTotal" class="pill muted">0</span>
+            </div>
+            <div id="scatterPlot" class="scatter-plot"></div>
+            <div class="axis-copy">
+              <span>Acciones Moodle</span>
+              <span>Evaluaciones</span>
+            </div>
+          </article>
+
           <article class="panel">
             <div class="panel-head">
               <h2>Actividad En Plataforma</h2>
@@ -82,6 +150,7 @@
       </section>
 
       <section id="riskView" class="view">
+        <section id="modelKpis" class="kpi-grid compact-wide"></section>
         <section class="risk-layout">
           <article class="panel">
             <div class="panel-head">
@@ -91,12 +160,28 @@
             <div id="riskBars" class="bar-stack"></div>
           </article>
 
+          <article class="panel">
+            <div class="panel-head">
+              <h2>Bandas De Probabilidad</h2>
+              <span id="probabilityBandTotal" class="pill muted">0</span>
+            </div>
+            <div id="probabilityBands" class="bar-stack"></div>
+          </article>
+
           <article class="panel risk-table-panel">
             <div class="panel-head">
               <h2>Priorización</h2>
               <span id="riskHighCount" class="pill muted">0</span>
             </div>
             <div id="riskTable" class="risk-table"></div>
+          </article>
+
+          <article class="panel evidence-panel">
+            <div class="panel-head">
+              <h2>Evidencia Bayesiana</h2>
+              <span id="evidenceCount" class="pill muted">0</span>
+            </div>
+            <div id="evidenceTable" class="evidence-table"></div>
           </article>
         </section>
       </section>

@@ -19,19 +19,23 @@ Proyecto GAS asociado:
 - Informe nativo de participacion por actividad.
 - Participacion del tutor/docente desde el informe nativo de participacion, cuando Moodle expone esos roles.
 - Resumen por estudiante con indicadores separados de actividad en plataforma y participacion evaluativa.
-- Senales heuristicas de probabilidad de desercion a partir de actividad, evaluacion, foros, ultimo acceso y acompanamiento tutorial.
+- Estimacion bayesiana inicial de probabilidad de desercion a partir de actividad, evaluacion, foros, ultimo acceso y acompanamiento tutorial.
 
 ## Tablero
 
 La primera pantalla es un tablero operativo con:
 
 - KPIs generales del aula.
+- Filtros globales por estudiante, nivel de riesgo, actividad en plataforma, participacion evaluativa y alertas.
+- KPIs dinamicos que se recalculan con los filtros activos.
+- Grafico de dona para el semaforo de riesgo.
+- Grafico de dispersion para cruzar acciones Moodle y evaluaciones registradas.
 - Distribucion de actividad en plataforma.
 - Distribucion de participacion evaluativa.
 - Ranking de actividades con mas evidencia.
 - Tabla filtrable por estudiante.
 - Panel individual con ultimo acceso, acciones, foros, evaluaciones, total del curso e indicador de seguimiento.
-- Vista de riesgo de desercion con priorizacion por estudiante.
+- Vista de riesgo de desercion con priorizacion por estudiante, bandas de probabilidad y evidencia bayesiana.
 - Vista de tutoria con acciones, foros, cobertura y actividades con evidencia.
 - Vista de automatizacion para activar corridas periodicas desde la web.
 - Vista de auditoria con registro de uso de la app.
@@ -62,6 +66,19 @@ La vista `Automatización` permite:
 - ejecutar una corrida inmediata usando la configuracion guardada.
 
 La configuracion se guarda en `data/automation_config.json`, archivo ignorado por Git.
+
+## Riesgo De Desercion
+
+La app calcula una probabilidad inicial de desercion con un modelo bayesiano auditable basado en razones de verosimilitud definidas por criterio experto. En cada corrida:
+
+1. Se parte de un prior conservador de desercion si no hay historial.
+2. Si existe una corrida previa del mismo curso, el posterior anterior del estudiante se usa como prior semanal.
+3. Las evidencias de Moodle actualizan el riesgo: actividad en plataforma, participacion evaluativa, foros, ultimo acceso, total del curso y senal tutorial.
+4. El reporte conserva `bayesian_prior_probability`, `bayesian_posterior_probability`, `bayesian_log_likelihood_ratio`, factores de evidencia y version del modelo.
+
+Este valor sirve para priorizar seguimiento tutorial. No debe usarse como decision automatica ni como sancion academica.
+
+En la vista `Riesgo`, el tablero muestra el prior medio, posterior medio, maximo posterior, version del modelo y cantidad de evidencias aplicadas. Tambien presenta una tabla de evidencia por estudiante con prior, posterior y log LR para auditoria docente.
 
 ## Ejecucion Local
 
@@ -137,6 +154,8 @@ Cada corrida genera una carpeta en `data/runs/<run_id>/` con:
 - `resumen_actividades_tutor.csv`
 - `detalle_participacion_tutor.csv`
 - `status.json`
+
+Las capturas de verificacion visual local pueden guardarse en `data/ui_checks/`; esa carpeta esta ignorada por Git.
 
 ## Despliegue Sugerido
 
