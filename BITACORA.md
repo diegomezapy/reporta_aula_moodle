@@ -150,3 +150,18 @@ Preparar el repositorio para que el backend FastAPI pueda desplegarse como servi
 
 El tunel temporal no reemplaza el despliegue productivo. Para crear el servicio permanente en Render mediante API se requiere una API Key de Render. El token GitHub no sirve para Render.
 
+## 2026-06-11 - Regeneracion de tunel temporal
+
+### Problema
+
+La URL temporal anterior de `localhost.run` comenzo a responder `503`, aunque el backend local seguia sano.
+
+### Accion
+
+- Se reinicio el tunel SSH hacia `127.0.0.1:8000`.
+- Nueva URL temporal verificada: `https://30c684a95440e7.lhr.life`.
+- `/healthz`: HTTP 200.
+- Sin autenticacion: HTTP 401.
+- Con Basic Auth: HTTP 200.
+- La credencial temporal se mantiene localmente fuera de Git.
+
