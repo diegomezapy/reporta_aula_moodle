@@ -487,3 +487,47 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 - Verificar visualmente en GitHub Pages despues del push que aparezcan `Actualizar version`, `Instalar` cuando aplique y el footer de version.
 - Mantener el mismo numero de version en `APP_VERSION`, `service-worker.js`, README y bitacora en cada despliegue.
+
+## 2026-06-11 11:56 - Verificacion de GAS operativo actualizado
+
+### Objetivo de la intervencion
+
+- Verificar la Web App GAS informada como actualizada por el usuario.
+- Actualizar el estado documental del proyecto, ya que el bloqueo `403 Acceso denegado` fue superado.
+
+### URLs verificadas
+
+- Web App GAS:
+  - `https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec`.
+- Endpoint JSON:
+  - `/exec?api=1`.
+- Endpoint JSONP:
+  - `/exec?api=report&callback=cb`.
+
+### Resultados verificados
+
+- `/exec?api=1`: HTTP 200, `application/json`, `ok:true`.
+- `/exec?api=report&callback=cb`: HTTP 200, `text/javascript`, `ok:true`.
+- El endpoint JSONP devuelve 20 registros de muestra en `report.summaries`.
+- Curso reportado: `Analitica de Big Data - Muestra GAS`.
+- Hoja vinculada reportada por GAS:
+  - `1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8`.
+- Carpeta Drive reportada por GAS:
+  - `https://drive.google.com/drive/folders/1qedaz8PyXE7W6PEMmLiGwPLq_h3B1j86`.
+- GitHub Pages publica `assets/pages-app.js?v=20260611-master-version` apuntando al mismo deployment GAS.
+
+### Estado operativo actualizado
+
+- GAS Web App: accesible.
+- Lectura JSON/JSONP desde GitHub Pages: disponible.
+- Integracion Sheets/Drive de muestra: disponible segun respuesta GAS.
+- Extraccion real Moodle con credenciales institucionales: pendiente de implementar/validar como flujo seguro independiente de GitHub Pages.
+
+### Archivos modificados
+
+- `README.md`.
+- `BITACORA.md`.
+
+### Recomendacion
+
+- Mantener este deployment activo y evitar reemplazarlo por otro sin repetir las verificaciones `/exec?api=1` y `/exec?api=report&callback=cb`.

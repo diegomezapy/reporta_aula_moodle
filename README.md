@@ -38,11 +38,14 @@ Estado operativo del 2026-06-11:
 
 - El codigo GAS real fue cargado al proyecto `1_wepzWMyJH-DgdhE3Wsu_Ci0QSikfhEcgWJipJdhXAjyYIfEq5up3hz-`.
 - El deployment real v3 existe: `AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA`.
-- La URL devuelve `403 Acceso denegado` hasta que la cuenta ejecutora autorice los scopes de `spreadsheets`, `drive` y ejecucion de Apps Script, y tenga acceso efectivo a la hoja.
-- La hoja no se considera operativa hasta verificar una escritura real en `GAS_RESUMEN`, `GAS_RIESGO`, `GAS_CORRIDA`, `GAS_EVIDENCIAS` y `GAS_AUDITORIA`.
-- La sesion `clasp` local usada para la carga estaba autenticada como `monitorimpactosocial@gmail.com`; esa cuenta debe tener acceso de edicion a la hoja o el deployment debe recrearse desde una cuenta que lo tenga.
+- La URL `/exec?api=1` responde `ok:true` y expone la hoja y carpeta Drive vinculadas.
+- La URL `/exec?api=report&callback=cb` responde JSONP `ok:true` con 20 registros de muestra.
+- Carpeta Drive de evidencias verificada por GAS:
+  - `https://drive.google.com/drive/folders/1qedaz8PyXE7W6PEMmLiGwPLq_h3B1j86`.
+- Hoja vinculada verificada por GAS:
+  - `1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8`.
 
-Para desbloquear la escritura real:
+Si el proyecto se recrea o cambia de cuenta, reautorizar con:
 
 ```bash
 cd gas
@@ -50,7 +53,7 @@ clasp login --use-project-scopes --include-clasp-scopes
 clasp run initializeReportaAulaWorkbook
 ```
 
-Luego abrir `/exec?api=report&callback=cb`. Si responde `ok:true`, la primera lectura inicializa datos de muestra y registra evidencia JSON en Drive.
+Luego abrir `/exec?api=report&callback=cb`. Si responde `ok:true`, GAS esta accesible desde GitHub Pages.
 
 ## Que Extrae
 
