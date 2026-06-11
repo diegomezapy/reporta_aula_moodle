@@ -129,3 +129,24 @@ Preparar el repositorio para que el backend FastAPI pueda desplegarse como servi
 - Configurar secretos en Render: `APP_USERNAME`, `APP_PASSWORD`, `MOODLE_USERNAME`, `MOODLE_PASSWORD`, y opcionalmente `GAS_WEBAPP_URL`/`GAS_SHARED_SECRET`.
 - Verificar la URL `onrender.com` y luego redirigir GitHub Pages hacia esa URL si se desea acceso directo.
 
+## 2026-06-11 - Publicacion de preparacion Render y URL temporal de app real
+
+### Resultado
+
+- Se publico en GitHub el commit `eee29da chore: preparar despliegue FastAPI en Render`.
+- GitHub Pages fue reconstruido sobre el commit `eee29da`.
+- `render.yaml` quedo accesible en la rama `diego`.
+- Se levanto la app FastAPI localmente con Basic Auth.
+- Se creo un tunel temporal HTTPS con `localhost.run` para abrir la app real mientras se completa el despliegue persistente.
+
+### Verificacion
+
+- URL temporal verificada: `https://58ecedd0f94160.lhr.life`.
+- `/healthz`: HTTP 200.
+- Pagina principal con Basic Auth: HTTP 200.
+- La credencial temporal se mantiene fuera de Git en `data/TEMP_TUNNEL_CREDENTIALS.txt`.
+
+### Pendiente Critico
+
+El tunel temporal no reemplaza el despliegue productivo. Para crear el servicio permanente en Render mediante API se requiere una API Key de Render. El token GitHub no sirve para Render.
+
