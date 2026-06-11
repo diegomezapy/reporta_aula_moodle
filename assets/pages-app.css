@@ -56,6 +56,11 @@ body {
   gap: 10px;
 }
 
+.top-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .student-badges {
   flex-wrap: wrap;
 }
@@ -852,6 +857,19 @@ button.secondary:hover {
   background: #dfe8df;
 }
 
+.secondary-action {
+  min-height: 40px;
+  padding: 0 14px;
+  background: #eef1eb;
+  color: var(--accent-strong);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.secondary-action:hover {
+  background: #dfe8df;
+}
+
 .icon-button {
   width: 40px;
   padding: 0;
@@ -925,6 +943,19 @@ button.secondary:hover {
   border-radius: 8px;
 }
 
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
 @media (max-width: 1080px) {
   .kpi-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -975,6 +1006,7 @@ button.secondary:hover {
   }
 
   .topbar,
+  .top-actions,
   .filter-band,
   .student-tools,
   .form-row,
@@ -997,6 +1029,11 @@ button.secondary:hover {
 
   .student-tools select {
     width: 100%;
+  }
+
+  .top-actions > *,
+  .app-footer span {
+    flex: 1 1 170px;
   }
 
   h1 {

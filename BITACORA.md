@@ -434,3 +434,56 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 - No declarar la app como operativa hasta verificar escritura real en Sheets y archivo de evidencia en Drive.
 - Mantener GAS como backend principal del proyecto y evitar textos de UI que indiquen FastAPI como requisito.
+
+## 2026-06-11 11:18 - Aplicacion de recomendaciones MASTER sobre version y PWA
+
+### Objetivo de la intervencion
+
+- Aplicar recomendaciones del Manual Maestro relacionadas con version visible, cache, PWA y botones criticos.
+- Agregar un boton visible para actualizar la version de la app publicada.
+
+### Diagnostico inicial
+
+- La app tenia service worker y cache busting, pero no exponia un control claro para que el usuario actualizara la version.
+- El boton `R` era ambiguo: recargaba datos, pero no comunicaba actualizacion de version.
+- No habia footer visible con version de app, fecha build y estado de cache.
+- No habia flujo visible de instalacion PWA cuando el navegador lo permitiera.
+
+### Acciones realizadas
+
+- Se agrego boton `Actualizar version` en la barra superior.
+- Se renombro el boton de recarga de datos a `Actualizar datos`.
+- Se agrego boton `Instalar`, visible solo cuando el navegador emite `beforeinstallprompt`.
+- Se agrego footer con version, fecha build y estado de cache.
+- Se agregaron constantes `APP_VERSION`, `APP_BUILD_DATE` y `APP_CACHE_PREFIX`.
+- El boton `Actualizar version` ahora:
+  - elimina caches `reporta-aula-moodle-pages-*`;
+  - solicita actualizacion de service workers registrados;
+  - recarga la app con parametros `app_v` y `ts`;
+  - informa `Version actualizada` al volver a cargar.
+- Se agrego la version a la vista `Corridas` y a `Auditoria`.
+- Se actualizo el cache del service worker a `reporta-aula-moodle-pages-v20260611-master-version`.
+
+### Archivos modificados
+
+- `index.html`.
+- `assets/pages-app.js`.
+- `assets/pages-app.css`.
+- `service-worker.js`.
+- `README.md`.
+- `BITACORA.md`.
+
+### Verificacion
+
+- `node --check assets/pages-app.js`: correcto.
+- `node --input-type=commonjs --check - < gas/Code.gs`: correcto.
+- `git diff --check`: correcto.
+- Servidor local `http://127.0.0.1:8066/`: HTML sirve `Actualizar datos`, `Actualizar version`, `Instalar` y footer `Version --`.
+- Asset CSS versionado `assets/pages-app.css?v=20260611-master-version`: HTTP 200.
+- Asset JS versionado `assets/pages-app.js?v=20260611-master-version`: HTTP 200 e incluye `APP_VERSION`, `updateAppVersion`, `beforeinstallprompt` y `registerServiceWorker`.
+- `service-worker.js`: HTTP 200 con cache `reporta-aula-moodle-pages-v20260611-master-version`.
+
+### Pendientes
+
+- Verificar visualmente en GitHub Pages despues del push que aparezcan `Actualizar version`, `Instalar` cuando aplique y el footer de version.
+- Mantener el mismo numero de version en `APP_VERSION`, `service-worker.js`, README y bitacora en cada despliegue.

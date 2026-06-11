@@ -84,8 +84,21 @@ La primera pantalla incluye:
 - Vista de automatizacion para configurar corridas periodicas desde GAS.
 - Vista de auditoria con registro de uso de la app.
 - PWA basica con `manifest.json` y `service-worker.js`.
+- Boton visible `Actualizar version` para limpiar cache local, revisar el service worker y recargar la app con cache-busting.
+- Boton `Instalar` cuando el navegador ofrece instalacion PWA.
+- Footer con version operativa, fecha build y estado de cache.
 
 Los endpoints usados por el tablero devuelven un payload compacto. Las evidencias completas deben quedar en Google Sheets y en archivos JSON dentro de la carpeta Drive configurada en Apps Script.
+
+## Version Y Cache
+
+La app publica muestra la version activa en el footer y en la vista `Corridas`.
+
+Version actual:
+
+`2026.06.11-master-version`
+
+El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
 
 ## Privacidad Y Acceso
 

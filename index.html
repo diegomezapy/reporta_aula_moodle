@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#246f5c" />
     <title>Reporta Aula Moodle</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-gas-direct" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-master-version" />
   </head>
   <body>
     <main class="shell">
@@ -24,7 +24,9 @@
             target="_blank"
             rel="noopener noreferrer"
           >Hoja en linea</a>
-          <button id="refreshRuns" class="icon-button" title="Actualizar" aria-label="Actualizar">R</button>
+          <button id="refreshRuns" class="secondary-action" type="button">Actualizar datos</button>
+          <button id="updateVersion" class="secondary-action" type="button">Actualizar version</button>
+          <button id="installApp" class="secondary-action" type="button" hidden>Instalar</button>
         </div>
       </header>
 
@@ -335,7 +337,11 @@
           <div id="auditTable" class="audit-table"></div>
         </section>
       </section>
+      <footer class="app-footer">
+        <span id="versionStamp">Version --</span>
+        <span id="cacheState">Cache pendiente</span>
+      </footer>
     </main>
-    <script src="assets/pages-app.js?v=20260611-gas-direct"></script>
+    <script src="assets/pages-app.js?v=20260611-master-version"></script>
   </body>
 </html>

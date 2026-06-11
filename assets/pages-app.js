@@ -1,11 +1,17 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.2";
+const APP_VERSION = "2026.06.11-master-version";
+const APP_BUILD_DATE = "2026-06-11";
+const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
 
 const state = {
   report: null,
   selectedStudentKey: null,
   source: "local",
+  versionRefreshNotice: false,
 };
+
+let deferredInstallPrompt = null;
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -63,6 +69,10 @@ const els = {
   gasUrl: $("#gasUrl"),
   runForm: $("#runForm"),
   runButton: $("#runButton"),
+  updateVersion: $("#updateVersion"),
+  installApp: $("#installApp"),
+  versionStamp: $("#versionStamp"),
+  cacheState: $("#cacheState"),
   filters: {
     search: $("#globalSearch"),
     risk: $("#riskFilter"),
@@ -680,6 +690,7 @@ function renderAutomation() {
 function renderRuns() {
   const runs = [
     { run_id: state.report.run_id, status: "done", message: "Reporte publico cargado" },
+    { run_id: "app-version", status: "done", message: `Version ${APP_VERSION} | build ${APP_BUILD_DATE}` },
     { run_id: "gas-webapp", status: state.source === "gas" ? "done" : "fallback", message: state.source === "gas" ? "JSONP GAS disponible" : "Se uso muestra local" },
     { run_id: "google-sheets", status: "done", message: `Hoja ${state.report.spreadsheet_id || "configurada"}` },
     { run_id: "google-drive", status: state.report.drive_folder_url ? "done" : "pending", message: state.report.drive_folder_url ? "Carpeta de evidencias configurada" : "Configurar folder id en GAS" },
@@ -717,6 +728,7 @@ function renderAudit() {
     ["2026-06-11", "GAS verificado con endpoint JSONP de reporte"],
     ["2026-06-11", "Hoja en linea enlazada desde el tablero"],
     ["2026-06-11", "Drive preparado para evidencias JSON desde GAS"],
+    ["2026-06-11", `Control visible de version ${APP_VERSION}`],
   ];
   els.auditCount.textContent = number(rows.length);
   els.auditTable.replaceChildren();
@@ -740,6 +752,72 @@ function clearFilters() {
   els.filters.evaluative.value = "all";
   els.filters.alertOnly.checked = false;
   renderDashboard();
+}
+
+function renderVersionStamp() {
+  if (!els.versionStamp) return;
+  els.versionStamp.textContent = `Version ${APP_VERSION} | build ${APP_BUILD_DATE}`;
+  if (els.cacheState) {
+    els.cacheState.textContent = "App shell cacheado con version operativa";
+  }
+}
+
+async function updateAppVersion() {
+  if (els.updateVersion) els.updateVersion.disabled = true;
+  setStatus("Actualizando version", "Limpiando cache local y revisando service worker.");
+  if (els.cacheState) els.cacheState.textContent = "Limpiando cache local";
+  try {
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((key) => key.startsWith(APP_CACHE_PREFIX)).map((key) => caches.delete(key)));
+    }
+    if ("serviceWorker" in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((registration) => registration.update().catch(() => {})));
+    }
+    sessionStorage.setItem("reportaAulaVersionRefresh", APP_VERSION);
+    const url = new URL(window.location.href);
+    url.searchParams.set("app_v", APP_VERSION);
+    url.searchParams.set("ts", String(Date.now()));
+    window.location.replace(url.toString());
+  } catch (error) {
+    setStatus("No se pudo actualizar", error.message || String(error), true);
+    if (els.cacheState) els.cacheState.textContent = "Actualizacion pendiente";
+    if (els.updateVersion) els.updateVersion.disabled = false;
+  }
+}
+
+async function installCurrentApp() {
+  if (!deferredInstallPrompt) {
+    setStatus("Instalacion", "El navegador no ofrecio instalacion PWA en este dispositivo.");
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  const choice = await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  if (els.installApp) els.installApp.hidden = true;
+  setStatus(
+    choice.outcome === "accepted" ? "Instalacion iniciada" : "Instalacion omitida",
+    choice.outcome === "accepted" ? "El navegador esta instalando la app." : "La app sigue disponible desde el navegador.",
+  );
+}
+
+async function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    if (els.cacheState) els.cacheState.textContent = "Service worker no disponible";
+    return;
+  }
+  try {
+    const registration = await navigator.serviceWorker.register("service-worker.js");
+    await registration.update();
+    if (sessionStorage.getItem("reportaAulaVersionRefresh") === APP_VERSION) {
+      sessionStorage.removeItem("reportaAulaVersionRefresh");
+      state.versionRefreshNotice = true;
+    }
+    if (els.cacheState) els.cacheState.textContent = "Service worker activo";
+  } catch (error) {
+    if (els.cacheState) els.cacheState.textContent = "Service worker pendiente";
+  }
 }
 
 async function testGas(event) {
@@ -766,6 +844,17 @@ async function testGas(event) {
 }
 
 async function init() {
+  renderVersionStamp();
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    if (els.installApp) els.installApp.hidden = false;
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    if (els.installApp) els.installApp.hidden = true;
+    setStatus("App instalada", "La app quedo instalada en este dispositivo.");
+  });
   $$(".tab").forEach((tab) => tab.addEventListener("click", () => switchTab(tab.dataset.tab)));
   [els.filters.search, els.filters.risk, els.filters.platform, els.filters.evaluative, els.filters.alertOnly].forEach((input) => input.addEventListener("input", renderDashboard));
   els.filters.risk.addEventListener("change", renderDashboard);
@@ -778,11 +867,11 @@ async function init() {
     setStatus("Actualizando", "Recargando datos de GAS.");
     await loadAndRender();
   });
+  els.updateVersion.addEventListener("click", updateAppVersion);
+  els.installApp.addEventListener("click", installCurrentApp);
   els.runForm.addEventListener("submit", testGas);
   els.gasUrl.value = localStorage.getItem("reportaAulaGasUrl") || GAS_REPORT_URL;
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
-  }
+  await registerServiceWorker();
   await loadAndRender();
 }
 
@@ -806,6 +895,10 @@ async function loadAndRender() {
   }
   els.sheetTarget.textContent = "Publicacion directa GitHub Pages -> GAS -> Sheets/Drive.";
   renderDashboard();
+  if (state.versionRefreshNotice) {
+    state.versionRefreshNotice = false;
+    setStatus("Version actualizada", `App version ${APP_VERSION} cargada.`);
+  }
 }
 
 init();
