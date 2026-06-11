@@ -159,7 +159,9 @@ Las capturas de verificacion visual local pueden guardarse en `data/ui_checks/`;
 
 ## Despliegue Sugerido
 
-La app puede desplegarse en Render, Railway, Fly.io, VPS o cualquier servicio que ejecute FastAPI con variables de entorno. En produccion, usar HTTPS y credenciales desde secretos del proveedor.
+GitHub Pages solo sirve archivos estaticos. Por eso el repositorio incluye una portada publica en `index.html`, pero la extraccion Moodle, las corridas programadas y los endpoints `/api/...` requieren un servidor Python.
+
+La app completa puede desplegarse en Render, Railway, Fly.io, VPS o cualquier servicio que ejecute FastAPI con variables de entorno. En produccion, usar HTTPS y credenciales desde secretos del proveedor.
 
 Comando:
 

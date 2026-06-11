@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reporta Aula Moodle</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f5f7f4;
+        color: #17221d;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        width: min(920px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 32px 0;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(30px, 6vw, 54px);
+      }
+
+      p {
+        color: #5d6b63;
+        line-height: 1.55;
+      }
+
+      .panel {
+        margin-top: 22px;
+        border: 1px solid #dfe6df;
+        border-left: 4px solid #c8a24a;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 18px;
+      }
+
+      a {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        margin-top: 12px;
+        border-radius: 8px;
+        background: #246f5c;
+        color: #ffffff;
+        padding: 10px 14px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Reporta Aula Moodle</h1>
+      <p>
+        Appweb para reportes Moodle, seguimiento academico y riesgo bayesiano de desercion.
+      </p>
+      <section class="panel">
+        <h2>Pagina publica disponible</h2>
+        <p>
+          GitHub Pages sirve esta portada estatica. La extraccion Moodle funciona desde el backend
+          FastAPI desplegado en un servicio que ejecute Python.
+        </p>
+        <a href="https://github.com/diegomezapy/reporta_aula_moodle">Ver repositorio</a>
+      </section>
+    </main>
+  </body>
+</html>
