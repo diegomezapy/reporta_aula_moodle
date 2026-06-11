@@ -649,6 +649,9 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - `curl` contra `/exec?api=runSample&callback=cb&courseId=1718&spreadsheetId=...`.
 - `python3 -m http.server 8070`.
 - `curl` contra `http://127.0.0.1:8070/`, `assets/pages-app.js` y `service-worker.js`.
+- `curl` contra `https://diegomezapy.github.io/reporta_aula_moodle/?verify=dual-risk-identifiers-2`.
+- `curl` contra `https://diegomezapy.github.io/reporta_aula_moodle/assets/pages-app.js?v=20260611-dual-risk-identifiers`.
+- `curl` contra `https://diegomezapy.github.io/reporta_aula_moodle/service-worker.js?verify=dual-risk-identifiers`.
 
 ### Resultados verificados
 
@@ -663,6 +666,11 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - `api=report&callback=cb` lee desde la hoja el contrato nuevo.
 - Servidor local `http://127.0.0.1:8070/` sirve `riskModeSwitch`, botones `Semestre/Carrera`, `tutorRoster`, `Generar extraccion` y assets `20260611-dual-risk-identifiers`.
 - `service-worker.js` local sirve cache `reporta-aula-moodle-pages-v20260611-dual-risk-identifiers`.
+- Commit funcional publicado: `d8313b7 feat: agregar riesgos por semestre y carrera`.
+- Ramas remotas actualizadas: `diego` y `main`.
+- GitHub Pages publico sirve `riskModeSwitch`, botones `Semestre/Carrera`, `tutorRoster` y assets `20260611-dual-risk-identifiers`.
+- Asset JS publico sirve `APP_VERSION = 2026.06.11-dual-risk-identifiers`, `activeRiskProbability`, `student_moodle_id`, `semester_desertion_probability`, `career_desertion_probability` y `tutorRoster`.
+- Service worker publico sirve cache `reporta-aula-moodle-pages-v20260611-dual-risk-identifiers`.
 
 ### Errores o incidentes
 
@@ -677,7 +685,6 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 ### Pendientes
 
-- Verificar GitHub Pages publicado despues de commit y push.
 - Reemplazar la muestra `runSample` por extraccion Moodle real con credenciales seguras en GAS.
 - Incorporar al manual maestro el patron reutilizable de modelos bayesianos con modalidades separadas y alias historicos de compatibilidad.
 
