@@ -919,6 +919,14 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - `api=runMoodleExtraction` con credenciales por URL: rechaza con error controlado `No envie credenciales Moodle por URL`.
 - `api=credentialStatus`: responde `configured:false` sin exponer secretos.
 - `api=runSample`: permanece operativo.
+- Commit funcional publicado: `98ad9e3 feat: habilitar credenciales moodle por usuario`.
+- Ramas remotas actualizadas: `origin/diego` y `origin/main`.
+- GitHub Pages verificado en `https://diegomezapy.github.io/reporta_aula_moodle/`:
+  - HTML publico sirve assets `20260611-user-credentials`;
+  - UI publica contiene `Carga segura Moodle`, `Abrir modulo` e iframe `gasExtractorFrame`;
+  - UI publica ya no contiene boton `Ver credenciales GAS`;
+  - JS publico contiene `APP_VERSION = "2026.06.11-user-credentials"`, `gasExtractorUrl`, `handleExtractorMessage` y `Panel seguro GAS`;
+  - service worker publico contiene cache `reporta-aula-moodle-pages-v20260611-user-credentials`.
 
 ### Errores o incidentes
 
@@ -934,7 +942,6 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 ### Pendientes
 
-- Publicar commit y verificar GitHub Pages con assets `20260611-user-credentials`.
 - Validar extraccion real con credenciales Moodle reales.
 
 ### Riesgos
