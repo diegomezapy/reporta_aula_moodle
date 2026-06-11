@@ -1,10 +1,10 @@
-const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-moodle-real-extraction";
+const CACHE_NAME = "reporta-aula-moodle-pages-v20260611-user-credentials";
 const APP_SHELL = [
   "./",
   "index.html",
   "manifest.json",
-  "assets/pages-app.css?v=20260611-moodle-real-extraction",
-  "assets/pages-app.js?v=20260611-moodle-real-extraction",
+  "assets/pages-app.css?v=20260611-user-credentials",
+  "assets/pages-app.js?v=20260611-user-credentials",
 ];
 
 self.addEventListener("install", (event) => {

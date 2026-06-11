@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#246f5c" />
     <title>Reporta Aula Moodle</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-moodle-real-extraction" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-user-credentials" />
   </head>
   <body>
     <main class="shell">
@@ -318,17 +318,16 @@
                 <input name="spreadsheet_id" value="1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8" readonly />
               </label>
               <div class="credential-box">
-                <span>Credenciales Moodle</span>
-                <strong id="credentialStatus">Consultando GAS</strong>
+                <span>Modo credenciales</span>
+                <strong id="credentialStatus">Carga por usuario</strong>
               </div>
             </div>
             <label>
               Nota
-              <textarea name="notes" rows="3">La publicacion GitHub Pages no almacena credenciales. Apps Script usa Script Properties para iniciar sesion en Moodle, escribe en Google Sheets y guarda evidencias en Drive.</textarea>
+              <textarea name="notes" rows="3">Cada usuario carga sus credenciales en el modulo seguro de Apps Script. La contrasena se usa solo para la corrida y no se guarda en Sheets, Drive ni GitHub Pages.</textarea>
             </label>
             <div class="form-row">
               <button id="runButton" type="submit">Verificar GAS</button>
-              <button id="checkMoodleCredentials" class="secondary" type="button">Ver credenciales GAS</button>
               <button id="generateExtraction" type="button">Generar extraccion Moodle</button>
               <button id="generateDemo" class="secondary" type="button">Generar muestra</button>
               <a class="buttonlike secondary" href="https://docs.google.com/spreadsheets/d/1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8/edit?usp=sharing" target="_blank" rel="noopener noreferrer">Abrir hoja</a>
@@ -336,6 +335,14 @@
               <a class="buttonlike secondary" href="https://github.com/diegomezapy/reporta_aula_moodle">Repositorio</a>
             </div>
           </form>
+
+          <article class="panel secure-extractor-panel">
+            <div class="panel-head">
+              <h2>Carga segura Moodle</h2>
+              <a id="openSecureExtractor" class="buttonlike secondary" href="https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec?view=extractor" target="_blank" rel="noopener noreferrer">Abrir modulo</a>
+            </div>
+            <iframe id="gasExtractorFrame" class="gas-extractor-frame" title="Carga segura de credenciales Moodle por Apps Script"></iframe>
+          </article>
 
           <article class="panel result-panel">
             <div class="panel-head">
@@ -371,6 +378,6 @@
         <span id="cacheState">Cache pendiente</span>
       </footer>
     </main>
-    <script src="assets/pages-app.js?v=20260611-moodle-real-extraction"></script>
+    <script src="assets/pages-app.js?v=20260611-user-credentials"></script>
   </body>
 </html>

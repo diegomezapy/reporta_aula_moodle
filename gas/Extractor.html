@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f7faf6;
+        --surface: #ffffff;
+        --ink: #20251f;
+        --muted: #667164;
+        --line: #dfe5dc;
+        --accent: #246f5c;
+        --good: #22724f;
+        --warn: #a35d17;
+        --bad: #a13b35;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      main {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+      }
+
+      header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 18px;
+      }
+
+      p,
+      .status {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      form {
+        display: grid;
+        gap: 12px;
+      }
+
+      .grid-two {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      label,
+      .checkline {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      input {
+        width: 100%;
+        min-height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        background: #ffffff;
+        color: var(--ink);
+        font: inherit;
+      }
+
+      .checkline {
+        grid-template-columns: 20px 1fr;
+        align-items: center;
+      }
+
+      .checkline input {
+        min-height: auto;
+      }
+
+      button {
+        min-height: 44px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #ffffff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 700;
+        padding: 10px 14px;
+      }
+
+      button:disabled {
+        opacity: 0.62;
+        cursor: progress;
+      }
+
+      .pill {
+        border: 1px solid #cfe1d9;
+        border-radius: 999px;
+        background: #edf6f1;
+        color: #164a3d;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 7px 10px;
+        white-space: nowrap;
+      }
+
+      .status {
+        min-height: 22px;
+        border-top: 1px solid var(--line);
+        padding-top: 10px;
+        font-weight: 700;
+      }
+
+      .status.good {
+        color: var(--good);
+      }
+
+      .status.bad {
+        color: var(--bad);
+      }
+
+      @media (max-width: 680px) {
+        header,
+        .grid-two {
+          grid-template-columns: 1fr;
+        }
+
+        header {
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <h1>Extraccion Moodle</h1>
+          <p>Credenciales por usuario, datos acumulados en Sheets.</p>
+        </div>
+        <span class="pill">GAS seguro</span>
+      </header>
+
+      <form id="extractorForm" autocomplete="on">
+        <div class="grid-two">
+          <label>
+            Operador
+            <input name="operatorName" autocomplete="name" placeholder="Nombre o area" />
+          </label>
+          <label>
+            Aula Moodle
+            <input name="moodleBaseUrl" type="url" value="https://www.virtual.facen.una.py/gradofacen" required />
+          </label>
+        </div>
+        <div class="grid-two">
+          <label>
+            Usuario Moodle
+            <input name="moodleUsername" autocomplete="username" required />
+          </label>
+          <label>
+            Contrasena Moodle
+            <input name="moodlePassword" type="password" autocomplete="current-password" required />
+          </label>
+        </div>
+        <div class="grid-two">
+          <label>
+            Curso ID
+            <input name="courseId" type="number" min="1" value="1718" required />
+          </label>
+          <label>
+            Actividades max.
+            <input name="maxActivities" type="number" min="1" max="60" value="10" required />
+          </label>
+        </div>
+        <label>
+          Hoja de registros
+          <input name="spreadsheetId" value="1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8" readonly />
+        </label>
+        <label class="checkline">
+          <input name="includeTutorParticipation" type="checkbox" checked />
+          <span>Incluir participacion del tutor/profesor</span>
+        </label>
+        <button id="extractButton" type="submit">Generar extraccion Moodle</button>
+      </form>
+
+      <div id="status" class="status">Listo para cargar credenciales.</div>
+    </main>
+
+    <script>
+      const form = document.getElementById("extractorForm");
+      const button = document.getElementById("extractButton");
+      const statusBox = document.getElementById("status");
+
+      function setStatus(message, kind) {
+        statusBox.textContent = message || "";
+        statusBox.className = "status" + (kind ? " " + kind : "");
+      }
+
+      function payloadFromForm() {
+        const data = new FormData(form);
+        return {
+          spreadsheetId: String(data.get("spreadsheetId") || "").trim(),
+          courseId: String(data.get("courseId") || "").trim(),
+          maxActivities: String(data.get("maxActivities") || "10").trim(),
+          moodleBaseUrl: String(data.get("moodleBaseUrl") || "").trim(),
+          moodleUsername: String(data.get("moodleUsername") || "").trim(),
+          moodlePassword: String(data.get("moodlePassword") || ""),
+          operatorName: String(data.get("operatorName") || "").trim(),
+          includeTutorParticipation: data.get("includeTutorParticipation") ? "true" : "false",
+        };
+      }
+
+      function postToParent(result) {
+        if (!window.parent || window.parent === window) return;
+        window.parent.postMessage({
+          type: "reporta-aula-moodle-extraction",
+          payload: result,
+        }, "*");
+      }
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const payload = payloadFromForm();
+        if (!payload.moodleBaseUrl || !payload.moodleUsername || !payload.moodlePassword || !payload.courseId) {
+          setStatus("Complete aula, usuario, contrasena y curso.", "bad");
+          return;
+        }
+        button.disabled = true;
+        setStatus("Extrayendo Moodle y guardando registros acumulados...", "");
+        google.script.run
+          .withSuccessHandler((result) => {
+            button.disabled = false;
+            if (!result || result.ok !== true) {
+              setStatus((result && result.error) || "No se pudo generar la extraccion.", "bad");
+              postToParent(result || { ok: false, error: "Respuesta vacia de GAS" });
+              return;
+            }
+            const evidence = result.evidence && result.evidence.file_name ? " Evidencia: " + result.evidence.file_name + "." : "";
+            setStatus("Extraccion guardada en Sheets/Drive." + evidence, "good");
+            form.elements.moodlePassword.value = "";
+            postToParent(result);
+          })
+          .withFailureHandler((error) => {
+            button.disabled = false;
+            const message = error && error.message ? error.message : String(error || "Error GAS");
+            setStatus(message, "bad");
+            postToParent({ ok: false, error: message });
+          })
+          .runMoodleExtraction(payload);
+      });
+    </script>
+  </body>
+</html>

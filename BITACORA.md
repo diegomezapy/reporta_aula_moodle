@@ -829,3 +829,120 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 - Configurar inicialmente `maxActivities=5` para la primera prueba real y luego subirlo gradualmente.
 - No usar cuentas personales con permisos excesivos; crear o usar una cuenta Moodle institucional de consulta.
+
+## 2026-06-11 16:10 - Credenciales Moodle por usuario y acumulacion historica
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Aula Moodle.
+- Ruta local: `/tmp/reporta_aula_sheet_button`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Responsable: Codex.
+- Version: `2026.06.11-user-credentials`.
+
+### Objetivo de la intervencion
+
+- Corregir el flujo para que cualquier usuario pueda cargar sus credenciales Moodle y ejecutar la extraccion.
+- Evitar envio de contrasenas por JSONP, URL o archivos versionados.
+- Acumular datos por corrida sin perder la ultima foto operativa del tablero.
+
+### Diagnostico inicial
+
+- La version anterior dependia de credenciales institucionales en `Script Properties`.
+- El boton `Ver credenciales GAS` generaba confusion porque el usuario final necesitaba cargar sus propias credenciales antes de extraer.
+- Las hojas principales `GAS_*` se sobrescribian para mostrar la ultima corrida, sin hojas historicas acumulativas.
+
+### Acciones realizadas
+
+- Se reviso el manual maestro en `MANUAL_MAESTRO_FORMATOS_FUNCIONES_APPWEB` para criterios de seguridad, GAS, auditoria, GitHub Pages y Moodle.
+- Se agrego modulo GAS `Extractor.html` con formulario seguro embebible.
+- Se agrego `view=extractor` en GAS para servir el modulo con `HtmlService` y `google.script.run`.
+- Se modifico `runMoodleExtraction` para aceptar credenciales temporales por formulario y mantener `Script Properties` solo como alternativa institucional.
+- Se bloqueo el uso de credenciales Moodle por URL en `api=runMoodleExtraction`.
+- Se agregaron hojas historicas acumulativas:
+  - `GAS_CORRIDAS_HISTORICO`;
+  - `GAS_RESUMEN_HISTORICO`;
+  - `GAS_PARTICIPANTES_HISTORICO`;
+  - `GAS_CALIFICACIONES_HISTORICO`;
+  - `GAS_ACTIVIDADES_HISTORICO`;
+  - `GAS_PARTICIPACION_HISTORICO`;
+  - `GAS_TUTORES_HISTORICO`.
+- Se actualizo la app publica para embeber el modulo seguro y recibir el resultado por `postMessage`.
+- Se actualizo `.clasp.json` para que `clasp push` use la carpeta versionada `gas/` y no una carpeta temporal vieja.
+- Se actualizo documentacion de usuario, tecnica, README y diccionario de datos.
+
+### Archivos modificados
+
+- `.clasp.json`.
+- `gas/.claspignore`.
+- `gas/Code.gs`.
+- `gas/Extractor.html`.
+- `index.html`.
+- `assets/pages-app.js`.
+- `assets/pages-app.css`.
+- `service-worker.js`.
+- `README.md`.
+- `docs/manual_usuario.md`.
+- `docs/manual_tecnico.md`.
+- `docs/diccionario_datos.md`.
+- `BITACORA.md`.
+
+### Comandos o scripts ejecutados
+
+- `node --check assets/pages-app.js`.
+- `node --input-type=commonjs --check - < gas/Code.gs`.
+- `python3 -m compileall app tests`.
+- `/Users/diegobernardomezabogado/reporta_aula_moodle/.venv/bin/python -m pytest`.
+- `git diff --check`.
+- `python3 -m http.server 8072`.
+- `clasp push -f`.
+- `clasp deploy -i AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA -d 'Reporta Aula Moodle user credentials extractor 20260611'`.
+- `curl` contra `view=extractor`.
+- `curl` contra `api=runMoodleExtraction` con credenciales simuladas por URL.
+- `curl` contra `api=credentialStatus`.
+- `curl` contra `api=runSample`.
+
+### Resultados verificados
+
+- Sintaxis JS correcta.
+- Sintaxis GAS correcta.
+- Compilacion Python correcta.
+- Pruebas Python: 5 passed, 1 warning LibreSSL/urllib3.
+- `git diff --check`: correcto.
+- Servidor local `http://127.0.0.1:8072/` sirve assets `20260611-user-credentials`, panel `Carga segura Moodle` e iframe `gasExtractorFrame`.
+- `gas/Extractor.html` local contiene `moodlePassword`, `google.script.run`, `runMoodleExtraction` y `postMessage`.
+- `clasp push -f`: correcto, subio `appsscript.json`, `Code.gs`, `Extractor.html` e `Index.html`.
+- Deployment GAS actualizado: `AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA @7`.
+- `view=extractor`: sirve `Extraccion Moodle`, `GAS seguro`, campo `moodlePassword`, `google.script.run`, `runMoodleExtraction` y `postMessage`.
+- `api=runMoodleExtraction` con credenciales por URL: rechaza con error controlado `No envie credenciales Moodle por URL`.
+- `api=credentialStatus`: responde `configured:false` sin exponer secretos.
+- `api=runSample`: permanece operativo.
+
+### Errores o incidentes
+
+- Se confirmo que `POST` directo desde GitHub Pages hacia Apps Script redirige y no es confiable para credenciales de usuario.
+- `clasp status` lista `.claspignore` como archivo local frente al proyecto GAS; no afecta el despliegue porque `clasp push -f` subio solo los 4 archivos GAS esperados.
+
+### Soluciones aplicadas
+
+- Credenciales por usuario dentro de modulo GAS embebido.
+- Contrasena usada solo en memoria durante la corrida y limpiada del formulario al terminar.
+- Auditoria con usuario Moodle enmascarado y sin contrasenas.
+- Hojas historicas acumulativas por `run_id`.
+
+### Pendientes
+
+- Publicar commit y verificar GitHub Pages con assets `20260611-user-credentials`.
+- Validar extraccion real con credenciales Moodle reales.
+
+### Riesgos
+
+- La extraccion real sigue dependiendo de la estructura HTML de Moodle.
+- El formulario seguro requiere que el despliegue GAS mantenga permisos correctos de Sheets, Drive y UrlFetch.
+
+### Recomendaciones
+
+- Iniciar primera prueba real con `Actividades max.` entre 5 y 10.
+- Mantener cuenta institucional solo para automatizaciones periodicas; para corridas manuales usar credenciales del usuario operador.

@@ -45,10 +45,10 @@ En `Automatizacion` puede activar corridas periodicas, definir intervalo, sincro
 
 La vista `Extraccion` separa dos acciones:
 
-- `Generar extraccion Moodle`: usa GAS para iniciar sesion en Moodle con credenciales guardadas en `Script Properties`.
+- `Generar extraccion Moodle`: abre el modulo seguro GAS. Alli cada usuario carga aula, usuario, contrasena, curso y actividades maximas, y genera la extraccion.
 - `Generar muestra`: genera datos anonimizados para diagnostico cuando no se quiere tocar Moodle real.
 
-Si `Credenciales Moodle` aparece como pendiente, el administrador debe configurar las propiedades `REPORTA_AULA_MOODLE_BASE_URL`, `REPORTA_AULA_MOODLE_USERNAME` y `REPORTA_AULA_MOODLE_PASSWORD` en Apps Script. La app publica no almacena ni muestra la contrasena.
+La contrasena Moodle se usa solo durante la corrida. No queda guardada en la hoja, Drive, GitHub Pages ni bitacora. Los datos extraidos se acumulan por corrida en las hojas historicas y la ultima extraccion queda visible en el tablero.
 
 ## Auditoria
 

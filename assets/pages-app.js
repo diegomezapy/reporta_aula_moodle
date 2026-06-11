@@ -1,6 +1,6 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.3_dual_desertion";
-const APP_VERSION = "2026.06.11-moodle-real-extraction";
+const APP_VERSION = "2026.06.11-user-credentials";
 const APP_BUILD_DATE = "2026-06-11";
 const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
 const RISK_MODES = {
@@ -92,6 +92,8 @@ const els = {
   generateDemo: $("#generateDemo"),
   checkMoodleCredentials: $("#checkMoodleCredentials"),
   credentialStatus: $("#credentialStatus"),
+  gasExtractorFrame: $("#gasExtractorFrame"),
+  openSecureExtractor: $("#openSecureExtractor"),
   updateVersion: $("#updateVersion"),
   installApp: $("#installApp"),
   versionStamp: $("#versionStamp"),
@@ -724,6 +726,53 @@ function runGasExtraction(endpoint = GAS_REPORT_URL, api = "runMoodleExtraction"
   });
 }
 
+function gasExtractorUrl(endpoint = GAS_REPORT_URL) {
+  const base = String(endpoint || GAS_REPORT_URL).trim().replace(/\/+$/, "");
+  try {
+    const url = new URL(base);
+    url.searchParams.set("view", "extractor");
+    url.searchParams.set("embed", "1");
+    url.searchParams.set("ts", Date.now());
+    return url.toString();
+  } catch (error) {
+    return `${GAS_REPORT_URL}?view=extractor&embed=1&ts=${Date.now()}`;
+  }
+}
+
+function refreshGasExtractorFrame() {
+  if (!els.gasExtractorFrame) return;
+  const base = String(els.gasUrl.value || GAS_REPORT_URL).trim().replace(/\/+$/, "");
+  const url = gasExtractorUrl(base);
+  if (els.gasExtractorFrame.src !== url) els.gasExtractorFrame.src = url;
+  if (els.openSecureExtractor) els.openSecureExtractor.href = url;
+}
+
+function handleExtractorMessage(event) {
+  const data = event.data || {};
+  if (data.type !== "reporta-aula-moodle-extraction") return;
+  const payload = data.payload || {};
+  if (!payload.ok || !payload.report) {
+    setStatus("Extraccion Moodle no generada", payload.error || "GAS no devolvio una extraccion valida", true);
+    return;
+  }
+  const report = normalizeReport({
+    ...payload.report,
+    spreadsheet_id: payload.spreadsheetId,
+    drive_folder_id: payload.driveFolderId,
+    drive_folder_url: payload.driveFolderUrl,
+    evidence_files: payload.evidence ? [payload.evidence] : [],
+  }, "gas");
+  state.report = report;
+  state.source = "gas";
+  els.googleState.textContent = "GAS conectado";
+  els.googleState.className = "pill good";
+  els.authState.textContent = "Moodle extraido";
+  const evidence = payload.evidence?.file_name ? ` Evidencia: ${payload.evidence.file_name}.` : "";
+  const user = payload.moodleUsernameMasked ? ` Usuario ${payload.moodleUsernameMasked}.` : "";
+  setStatus("Extraccion Moodle generada", `La corrida fue guardada y acumulada en Sheets/Drive.${user}${evidence}`);
+  renderDashboard();
+}
+
 function riskMatches(row, filter) {
   const level = String(activeRiskLevel(row) || "").toLowerCase();
   if (filter === "all") return true;
@@ -1132,7 +1181,7 @@ function renderAutomation() {
     <span>Fuente actual</span><strong>${state.source === "gas" ? "GAS directo" : "Datos locales"}</strong>
     <span>Hoja operativa</span><strong>${escapeHtml(state.report.spreadsheet_id || "Configurada en GAS")}</strong>
     <span>Drive evidencias</span><strong>${state.report.drive_folder_url ? "Configurado" : "Pendiente"}</strong>
-    <span>Credenciales</span><strong>Solo Script Properties</strong>
+    <span>Credenciales</span><strong>Panel seguro GAS</strong>
   `;
 }
 
@@ -1308,13 +1357,13 @@ function renderCredentialStatus(payload) {
     return;
   }
   if (payload.configured) {
-    els.credentialStatus.textContent = `Configuradas para ${payload.usernameMasked || "usuario Moodle"} en ${payload.baseUrl || "Moodle"}`;
+    els.credentialStatus.textContent = `Institucionales disponibles: ${payload.usernameMasked || "usuario Moodle"}`;
     els.credentialStatus.className = "good";
     els.authState.textContent = "Moodle real";
     return;
   }
-  els.credentialStatus.textContent = "No configuradas en Script Properties";
-  els.credentialStatus.className = "warn";
+  els.credentialStatus.textContent = "Cada usuario carga en GAS";
+  els.credentialStatus.className = "good";
 }
 
 async function checkMoodleCredentials() {
@@ -1327,9 +1376,9 @@ async function checkMoodleCredentials() {
     setStatus(
       status.configured ? "Credenciales configuradas" : "Credenciales pendientes",
       status.configured
-        ? `GAS tiene credenciales Moodle para ${status.usernameMasked}.`
-        : `Configure ${status.propertyNames.join(", ")} en Apps Script.`,
-      !status.configured,
+        ? `GAS tiene credenciales institucionales para ${status.usernameMasked}.`
+        : "Modo multiusuario activo: cargue credenciales en el modulo seguro.",
+      false,
     );
   } catch (error) {
     setStatus("Credenciales no verificadas", error.message || String(error), true);
@@ -1339,6 +1388,12 @@ async function checkMoodleCredentials() {
 async function generateExtraction(api = "runMoodleExtraction") {
   const base = String(els.gasUrl.value || GAS_REPORT_URL).trim().replace(/\/+$/, "");
   localStorage.setItem("reportaAulaGasUrl", base);
+  refreshGasExtractorFrame();
+  if (api === "runMoodleExtraction") {
+    els.gasExtractorFrame?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setStatus("Carga segura Moodle", "Ingrese sus credenciales en el modulo GAS y pulse Generar extraccion Moodle.");
+    return;
+  }
   els.generateExtraction.disabled = true;
   if (els.generateDemo) els.generateDemo.disabled = true;
   const isMoodle = api === "runMoodleExtraction";
@@ -1397,8 +1452,12 @@ async function init() {
   els.generateExtraction.addEventListener("click", () => generateExtraction("runMoodleExtraction"));
   if (els.generateDemo) els.generateDemo.addEventListener("click", () => generateExtraction("runSample"));
   if (els.checkMoodleCredentials) els.checkMoodleCredentials.addEventListener("click", checkMoodleCredentials);
+  window.addEventListener("message", handleExtractorMessage);
+  els.gasUrl.addEventListener("change", refreshGasExtractorFrame);
+  els.gasUrl.addEventListener("blur", refreshGasExtractorFrame);
   els.runForm.addEventListener("submit", testGas);
   els.gasUrl.value = localStorage.getItem("reportaAulaGasUrl") || GAS_REPORT_URL;
+  refreshGasExtractorFrame();
   await registerServiceWorker();
   checkMoodleCredentials();
   await loadAndRender();

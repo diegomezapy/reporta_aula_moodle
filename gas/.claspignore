@@ -1,3 +1,5 @@
 desktop.ini
 *.md
 node_modules/**
+.clasp.json
+.claspignore

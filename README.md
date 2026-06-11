@@ -105,11 +105,11 @@ La app publica muestra la version activa en el footer y en la vista `Corridas`.
 
 Version actual:
 
-`2026.06.11-moodle-real-extraction`
+`2026.06.11-user-credentials`
 
 El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
 
-El boton `Generar extraccion Moodle` llama a Apps Script con `api=runMoodleExtraction`. GAS inicia sesion en Moodle usando credenciales guardadas en `Script Properties`, extrae participantes, calificaciones, actividades y participacion cuando Moodle lo permite, escribe en Google Sheets, guarda evidencia JSON en Drive y devuelve el reporte para refrescar el tablero.
+El boton `Generar extraccion Moodle` abre el modulo seguro servido por Apps Script. Cada usuario ingresa aula, usuario y contrasena Moodle para esa corrida; GAS usa esas credenciales solo en memoria, extrae participantes, calificaciones, actividades y participacion cuando Moodle lo permite, escribe la ultima foto en Google Sheets, acumula historicos por `run_id`, guarda evidencia JSON en Drive y devuelve el reporte al tablero.
 
 El boton `Generar muestra` llama a `api=runSample` y queda solo como diagnostico anonimo.
 
@@ -122,9 +122,9 @@ APP_USERNAME=admin
 APP_PASSWORD=un-password-largo
 ```
 
-En la arquitectura GAS directa, las credenciales Moodle, tokens compartidos y carpeta Drive deben ir en `Script Properties`, no en GitHub Pages ni en archivos versionados.
+En la arquitectura GAS directa, las contrasenas Moodle no deben viajar por URL ni guardarse en GitHub Pages, Google Sheets, Drive, bitacoras o archivos versionados. El modo recomendado es el formulario seguro `view=extractor`, servido por Apps Script y ejecutado con `google.script.run`.
 
-Propiedades requeridas para extraccion Moodle real:
+Como alternativa institucional, un administrador puede dejar una cuenta Moodle de consulta en `Script Properties`. Ese modo es opcional y debe usarse solo con una cuenta de servicio autorizada:
 
 ```text
 REPORTA_AULA_MOODLE_BASE_URL=https://www.virtual.facen.una.py/gradofacen
@@ -140,7 +140,7 @@ clearReportaAulaMoodleCredentials()
 getMoodleCredentialStatus()
 ```
 
-La app publica solo consulta `credentialStatus`; no muestra ni almacena la contrasena.
+La app publica consulta `credentialStatus` solo para saber si existe una cuenta institucional opcional. Para uso multiusuario, cada operador carga sus credenciales en el modulo seguro. La contrasena se borra del formulario al terminar la corrida y no se incluye en evidencias ni logs.
 
 Cada acceso queda registrado localmente en `data/access_log.jsonl` con usuario, fecha, ruta, estado HTTP y origen tecnico. No se registran contrasenas.
 
@@ -154,7 +154,7 @@ La vista `Automatización` permite:
 - incluir o excluir la extraccion de participacion del tutor;
 - ejecutar una corrida inmediata usando la configuracion guardada.
 
-La configuracion productiva debe guardarse en Google Sheets y/o Script Properties. `data/automation_config.json` queda solo para ejecucion local Python.
+La configuracion productiva debe guardarse en Google Sheets y/o Script Properties. `data/automation_config.json` queda solo para ejecucion local Python. Las extracciones periodicas deben usar una cuenta institucional configurada en backend, no credenciales personales de un usuario final.
 
 ## Riesgo De Desercion
 
@@ -225,6 +225,8 @@ initializeReportaAulaWorkbook()
 ```
 
 `initializeReportaAulaWorkbook()` prepara las hojas operativas `CONFIG`, `USUARIOS`, `AUDITORIA`, `ERRORES`, `GAS_RESUMEN`, `GAS_RIESGO`, `GAS_CORRIDA` y `GAS_EVIDENCIAS`. Tambien prepara o reutiliza la carpeta Drive de evidencias.
+
+En cada extraccion Moodle real, las hojas `GAS_RESUMEN`, `GAS_PARTICIPANTES`, `GAS_CALIFICACIONES`, `GAS_ACTIVIDADES`, `GAS_PARTICIPACION`, `GAS_TUTORES` y `GAS_CORRIDA` se actualizan como ultima foto operativa. El historial acumulado queda en `GAS_CORRIDAS_HISTORICO`, `GAS_RESUMEN_HISTORICO`, `GAS_PARTICIPANTES_HISTORICO`, `GAS_CALIFICACIONES_HISTORICO`, `GAS_ACTIVIDADES_HISTORICO`, `GAS_PARTICIPACION_HISTORICO` y `GAS_TUTORES_HISTORICO`.
 
 4. Desplegar como Web App.
 5. Verificar con:

@@ -7,6 +7,9 @@
 | `run_id` | Identificador unico de corrida. |
 | `generated_at` | Fecha y hora UTC de generacion. |
 | `moodle_base_url` | URL base del Moodle consultado. |
+| `credential_source` | Origen operativo de credenciales: formulario temporal de usuario o propiedades institucionales de GAS. |
+| `moodle_username_masked` | Usuario Moodle enmascarado para auditoria sin exponer la cuenta completa. |
+| `operator_name` | Nombre o area declarado por quien ejecuta la corrida, si fue informado. |
 | `course_id` | Id del curso Moodle. |
 | `course_title` | Titulo visible del curso. |
 | `participants` | Participantes con rol estudiante. |
@@ -99,3 +102,21 @@
 | `resumen_tutor.csv` | KPIs de tutoria. |
 | `detalle_participacion.csv` | Participacion estudiantil por actividad. |
 | `detalle_participacion_tutor.csv` | Participacion tutorial por actividad. |
+
+## Hojas GAS
+
+| Hoja | Contenido |
+| --- | --- |
+| `GAS_RESUMEN` | Ultima foto operativa por estudiante para alimentar el tablero. |
+| `GAS_PARTICIPANTES` | Participantes detectados en la ultima corrida. |
+| `GAS_CALIFICACIONES` | Lectura cruda/resumida del libro de calificaciones de la ultima corrida. |
+| `GAS_ACTIVIDADES` | Actividades Moodle detectadas en la ultima corrida. |
+| `GAS_PARTICIPACION` | Participacion estudiantil de la ultima corrida. |
+| `GAS_TUTORES` | Perfiles agregados de tutor/profesor de la ultima corrida. |
+| `GAS_CORRIDAS_HISTORICO` | Registro acumulado de corridas Moodle reales. |
+| `GAS_RESUMEN_HISTORICO` | Resumen por estudiante acumulado por `run_id`. |
+| `GAS_PARTICIPANTES_HISTORICO` | Participantes acumulados por `run_id`. |
+| `GAS_CALIFICACIONES_HISTORICO` | Calificaciones acumuladas por `run_id`. |
+| `GAS_ACTIVIDADES_HISTORICO` | Actividades acumuladas por `run_id`. |
+| `GAS_PARTICIPACION_HISTORICO` | Participacion estudiantil acumulada por `run_id`. |
+| `GAS_TUTORES_HISTORICO` | Datos agregados de tutores/profesores acumulados por `run_id`. |

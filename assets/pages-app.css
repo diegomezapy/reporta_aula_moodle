@@ -842,6 +842,24 @@ select:focus {
   gap: 12px;
 }
 
+.secure-extractor-panel {
+  display: grid;
+  gap: 12px;
+  min-height: 520px;
+}
+
+.gas-extractor-frame {
+  width: 100%;
+  min-height: 460px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.result-panel {
+  grid-column: 1 / -1;
+}
+
 .checkline {
   display: flex;
   align-items: center;

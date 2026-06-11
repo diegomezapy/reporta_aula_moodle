@@ -23,7 +23,22 @@ function doGet(e) {
   }
 
   if (params.api === 'runMoodleExtraction') {
+    if (hasTransientCredentialFields_(params)) {
+      return jsonOrJsonp_({
+        ok: false,
+        mode: 'moodle-real',
+        error: 'No envie credenciales Moodle por URL. Use el modulo seguro GAS con formulario embebido.',
+      }, params.callback);
+    }
     return jsonOrJsonp_(runMoodleExtraction(params), params.callback);
+  }
+
+  if (params.view === 'extractor') {
+    return HtmlService
+      .createTemplateFromFile('Extractor')
+      .evaluate()
+      .setTitle('Extraccion Moodle segura')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
   if (params.api === '1' || params.format === 'json') {
@@ -115,18 +130,29 @@ function runMoodleExtraction(form) {
   const courseId = Number((form && form.courseId) || 1718);
   const ss = SpreadsheetApp.openById(spreadsheetId);
   setupGasSampleWorkbook_(ss);
+  let credentialMeta = null;
 
   try {
-    const credentials = getMoodleCredentials_();
+    const credentials = resolveMoodleCredentials_(form || {});
+    credentialMeta = {
+      ok: true,
+      configured: true,
+      source: credentials.source,
+      baseUrl: credentials.baseUrl,
+      usernameMasked: credentials.usernameMasked,
+    };
     const report = buildMoodleReport_(credentials, courseId, form || {});
     const evidence = saveEvidenceFile_(report, { report }, 'moodle_extraction');
     writeGasSample_(ss, report, evidence);
     writeMoodleRawSheets_(ss, report);
+    appendMoodleAccumulatedSheets_(ss, report, evidence);
     appendEvidence_(ss, report, evidence);
-    appendAudit_(ss, 'runMoodleExtraction', 'Extraccion Moodle real ejecutada para curso ' + courseId, startedAt);
+    appendAudit_(ss, 'runMoodleExtraction', 'Extraccion Moodle real ejecutada para curso ' + courseId + ' con credenciales ' + credentials.source + ' de ' + credentials.usernameMasked, startedAt);
     return {
       ok: true,
       mode: 'moodle-real',
+      credentialSource: credentials.source,
+      moodleUsernameMasked: credentials.usernameMasked,
       report,
       spreadsheetId,
       driveFolderId: evidence.folder_id,
@@ -141,7 +167,7 @@ function runMoodleExtraction(form) {
       ok: false,
       mode: 'moodle-real',
       error: String(error && error.message ? error.message : error),
-      credentialStatus: getMoodleCredentialStatus(),
+      credentialStatus: credentialMeta || getMoodleCredentialStatus(),
       spreadsheetId,
       elapsedMs: new Date().getTime() - startedAt.getTime(),
     };
@@ -334,7 +360,7 @@ function buildMoodleReport_(credentials, courseId, form) {
   const courseTitle = extractTitle_(courseHtml) || (form.courseTitle || 'Curso Moodle ' + courseId);
   const participants = extractMoodleParticipants_(moodleFetch_(client, '/user/index.php?id=' + courseId + '&perpage=5000'));
   const gradeRows = extractMoodleGrades_(moodleFetch_(client, '/grade/report/grader/index.php?id=' + courseId), participants);
-  const activities = extractMoodleActivities_(courseHtml);
+  const activities = extractMoodleActivities_(courseHtml, credentials.baseUrl);
   const maxActivities = Math.max(1, Math.min(Number(form.maxActivities || 25), 60));
   const selectedActivities = activities.slice(0, maxActivities);
   const participationRows = extractMoodleParticipation_(client, courseId, selectedActivities, [{ id: '5', name: 'Estudiante' }]);
@@ -351,6 +377,9 @@ function buildMoodleReport_(credentials, courseId, form) {
     course_id: courseId,
     course_title: courseTitle,
     moodle_base_url: credentials.baseUrl,
+    credential_source: credentials.source || 'script-properties',
+    moodle_username_masked: credentials.usernameMasked || maskValue_(credentials.username),
+    operator_name: sanitizePublicText_(form.operatorName || form.operator_name || ''),
     model_version: MOODLE_MODEL_VERSION,
     extraction_mode: 'moodle-real',
     source_counts: {
@@ -507,7 +536,7 @@ function extractMoodleGrades_(html, participants) {
   }).filter((row) => row.name || row.username);
 }
 
-function extractMoodleActivities_(html) {
+function extractMoodleActivities_(html, baseUrl) {
   const activities = {};
   const linkRegex = /<a\b[^>]*href=["']([^"']*\/mod\/([^\/]+)\/view\.php\?id=(\d+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let match;
@@ -518,7 +547,7 @@ function extractMoodleActivities_(html) {
       cmid: match[3],
       module: match[2],
       name,
-      url: absoluteMoodleUrl_(match[1]),
+      url: absoluteMoodleUrl_(match[1], baseUrl),
     };
   }
   return Object.keys(activities).map((key) => activities[key]);
@@ -1243,9 +1272,9 @@ function daysFromText_(text) {
   return round_(value || 0);
 }
 
-function absoluteMoodleUrl_(href) {
+function absoluteMoodleUrl_(href, baseUrl) {
   if (/^https?:\/\//i.test(href)) return href;
-  const base = PropertiesService.getScriptProperties().getProperty(MOODLE_BASE_URL_PROPERTY) || '';
+  const base = baseUrl || PropertiesService.getScriptProperties().getProperty(MOODLE_BASE_URL_PROPERTY) || '';
   return base.replace(/\/+$/, '') + '/' + String(href || '').replace(/^\/+/, '');
 }
 
@@ -1272,11 +1301,43 @@ function getMoodleCredentials_() {
     baseUrl: props.getProperty(MOODLE_BASE_URL_PROPERTY) || '',
     username: props.getProperty(MOODLE_USERNAME_PROPERTY) || '',
     password: props.getProperty(MOODLE_PASSWORD_PROPERTY) || '',
+    source: 'script-properties',
   };
   if (!credentials.baseUrl || !credentials.username || !credentials.password) {
     throw new Error('Credenciales Moodle no configuradas en Script Properties. Configure REPORTA_AULA_MOODLE_BASE_URL, REPORTA_AULA_MOODLE_USERNAME y REPORTA_AULA_MOODLE_PASSWORD.');
   }
+  credentials.usernameMasked = maskValue_(credentials.username);
   return credentials;
+}
+
+function resolveMoodleCredentials_(form) {
+  const baseUrl = String(form.baseUrl || form.moodleBaseUrl || form.moodle_base_url || '').trim().replace(/\/+$/, '');
+  const username = String(form.username || form.moodleUsername || form.moodle_username || '').trim();
+  const password = String(form.password || form.moodlePassword || form.moodle_password || '');
+  if (baseUrl && username && password) {
+    return {
+      baseUrl,
+      username,
+      password,
+      source: 'transient-user-form',
+      usernameMasked: maskValue_(username),
+    };
+  }
+  return getMoodleCredentials_();
+}
+
+function hasTransientCredentialFields_(form) {
+  return Boolean(
+    form &&
+    (
+      form.password ||
+      form.moodlePassword ||
+      form.moodle_password ||
+      form.username ||
+      form.moodleUsername ||
+      form.moodle_username
+    )
+  );
 }
 
 function configureMoodleCredentials_(form) {
@@ -1302,6 +1363,10 @@ function maskValue_(value) {
   const text = String(value || '');
   if (text.length <= 4) return '****';
   return text.substring(0, 2) + '***' + text.substring(text.length - 2);
+}
+
+function sanitizePublicText_(value) {
+  return String(value || '').replace(/[\r\n\t]+/g, ' ').replace(/[<>]/g, '').trim().substring(0, 160);
 }
 
 function appendAudit_(ss, action, detail, startedAt) {
@@ -1409,6 +1474,59 @@ function writeMoodleRawSheets_(ss, report) {
   writeObjects_(ss, 'GAS_TUTORES', report.tutor_profiles || [], ['tutor_id', 'tutor_name', 'tutor_email', 'tutor_role', 'assigned_students', 'tutor_actions_registered', 'tutor_forum_replies', 'tutor_feedback_count', 'tutor_response_hours', 'tutor_activity_coverage', 'tutor_followup_signal']);
 }
 
+function appendMoodleAccumulatedSheets_(ss, report, evidence) {
+  const context = {
+    run_id: report.run_id,
+    generated_at: report.generated_at,
+    course_id: report.course_id,
+    course_title: report.course_title,
+  };
+  appendObjectsWithContext_(ss, 'GAS_CORRIDAS_HISTORICO', [{
+    run_id: report.run_id,
+    generated_at: report.generated_at,
+    course_id: report.course_id,
+    course_title: report.course_title,
+    moodle_base_url: report.moodle_base_url,
+    credential_source: report.credential_source,
+    moodle_username_masked: report.moodle_username_masked,
+    operator_name: report.operator_name,
+    model_version: report.model_version,
+    extraction_mode: report.extraction_mode,
+    participants: (report.source_counts && report.source_counts.participants) || 0,
+    grade_rows: (report.source_counts && report.source_counts.grade_rows) || 0,
+    activities: (report.source_counts && report.source_counts.activities) || 0,
+    activities_extracted_for_participation: (report.source_counts && report.source_counts.activities_extracted_for_participation) || 0,
+    participation_rows: (report.source_counts && report.source_counts.participation_rows) || 0,
+    tutor_participation_rows: (report.source_counts && report.source_counts.tutor_participation_rows) || 0,
+    evidence_file: evidence && evidence.file_url ? evidence.file_url : '',
+  }], [
+    'run_id',
+    'generated_at',
+    'course_id',
+    'course_title',
+    'moodle_base_url',
+    'credential_source',
+    'moodle_username_masked',
+    'operator_name',
+    'model_version',
+    'extraction_mode',
+    'participants',
+    'grade_rows',
+    'activities',
+    'activities_extracted_for_participation',
+    'participation_rows',
+    'tutor_participation_rows',
+    'evidence_file',
+  ]);
+
+  appendObjectsWithContext_(ss, 'GAS_RESUMEN_HISTORICO', report.summaries || [], ['run_id', 'generated_at', 'course_id'].concat(readSheetHeaders_(ss, 'GAS_RESUMEN', [])), context);
+  appendObjectsWithContext_(ss, 'GAS_PARTICIPANTES_HISTORICO', report.participants || [], ['run_id', 'generated_at', 'course_id'].concat(readSheetHeaders_(ss, 'GAS_PARTICIPANTES', [])), context);
+  appendObjectsWithContext_(ss, 'GAS_CALIFICACIONES_HISTORICO', report.grade_rows || [], ['run_id', 'generated_at', 'course_id'].concat(readSheetHeaders_(ss, 'GAS_CALIFICACIONES', [])), context);
+  appendObjectsWithContext_(ss, 'GAS_ACTIVIDADES_HISTORICO', report.activities || [], ['run_id', 'generated_at', 'course_id'].concat(readSheetHeaders_(ss, 'GAS_ACTIVIDADES', [])), context);
+  appendObjectsWithContext_(ss, 'GAS_PARTICIPACION_HISTORICO', report.participation_rows || [], ['run_id', 'generated_at', 'course_id'].concat(readSheetHeaders_(ss, 'GAS_PARTICIPACION', [])), context);
+  appendObjectsWithContext_(ss, 'GAS_TUTORES_HISTORICO', report.tutor_profiles || [], ['run_id', 'generated_at', 'course_id'].concat(readSheetHeaders_(ss, 'GAS_TUTORES', [])), context);
+}
+
 function writeRunMetadata_(ss, run) {
   const values = [
     ['Campo', 'Valor'],
@@ -1446,6 +1564,25 @@ function writeObjects_(ss, name, rows, headers) {
   writeValues_(ss, name, values);
 }
 
+function appendObjectsWithContext_(ss, name, rows, headers, context) {
+  const safeHeaders = headers.filter((header, index) => header && headers.indexOf(header) === index);
+  const items = rows || [];
+  const sheet = ensureSheetWithHeaders_(ss, name, safeHeaders);
+  if (!items.length || !safeHeaders.length) return;
+  const values = items.map((row) => safeHeaders.map((key) => {
+    if (context && Object.prototype.hasOwnProperty.call(context, key)) return context[key];
+    const value = row[key];
+    return value === undefined || value === null ? '' : value;
+  }));
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, safeHeaders.length).setValues(values);
+}
+
+function readSheetHeaders_(ss, name, fallback) {
+  const sheet = ss.getSheetByName(name);
+  if (!sheet || sheet.getLastRow() < 1 || sheet.getLastColumn() < 1) return fallback || [];
+  return sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map((header) => String(header || ''));
+}
+
 function ensureSheetWithHeaders_(ss, name, headers) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) {
@@ -1455,6 +1592,7 @@ function ensureSheetWithHeaders_(ss, name, headers) {
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.setFrozenRows(1);
   }
+  return sheet;
 }
 
 function json_(payload) {

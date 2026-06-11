@@ -23,7 +23,9 @@ APP_USERNAME=admin
 APP_PASSWORD=clave-larga
 ```
 
-En la publicacion GitHub Pages las credenciales Moodle no se ingresan ni se almacenan en el navegador. Para GAS directo, deben cargarse en `Script Properties`:
+En la publicacion GitHub Pages las credenciales Moodle no deben enviarse por URL ni por JSONP. La extraccion multiusuario se ejecuta desde el modulo `view=extractor` servido por Apps Script y embebido en la app publica. Ese modulo usa `google.script.run`, recibe las credenciales por formulario, las usa solo durante la corrida y no las escribe en Sheets, Drive, bitacoras ni evidencias.
+
+Para automatizaciones institucionales puede configurarse una cuenta Moodle de consulta en `Script Properties`:
 
 ```text
 REPORTA_AULA_MOODLE_BASE_URL
@@ -31,7 +33,9 @@ REPORTA_AULA_MOODLE_USERNAME
 REPORTA_AULA_MOODLE_PASSWORD
 ```
 
-El backend GAS expone `api=credentialStatus` para verificar configuracion sin revelar la contrasena, y `api=runMoodleExtraction` para ejecutar la extraccion real. `api=runSample` queda como muestra anonima.
+El backend GAS expone `api=credentialStatus` para verificar configuracion institucional sin revelar la contrasena. `api=runMoodleExtraction` por GET rechaza credenciales en URL; para credenciales por usuario debe usarse el modulo seguro GAS. `api=runSample` queda como muestra anonima.
+
+Las hojas operativas `GAS_*` conservan la ultima foto para el tablero. Las hojas `GAS_*_HISTORICO` acumulan registros por `run_id`, `generated_at` y `course_id`.
 
 Las credenciales locales Python pueden ingresarse por formulario o por variables de entorno. No se escriben en reportes ni bitacoras.
 
