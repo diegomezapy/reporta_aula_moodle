@@ -41,6 +41,15 @@ La vista `Tutoria` resume participacion del tutor/docente cuando Moodle permite 
 
 En `Automatizacion` puede activar corridas periodicas, definir intervalo, sincronizar con Google Sheets, incluir tutoria y ejecutar una corrida inmediata.
 
+## Extraccion
+
+La vista `Extraccion` separa dos acciones:
+
+- `Generar extraccion Moodle`: usa GAS para iniciar sesion en Moodle con credenciales guardadas en `Script Properties`.
+- `Generar muestra`: genera datos anonimizados para diagnostico cuando no se quiere tocar Moodle real.
+
+Si `Credenciales Moodle` aparece como pendiente, el administrador debe configurar las propiedades `REPORTA_AULA_MOODLE_BASE_URL`, `REPORTA_AULA_MOODLE_USERNAME` y `REPORTA_AULA_MOODLE_PASSWORD` en Apps Script. La app publica no almacena ni muestra la contrasena.
+
 ## Auditoria
 
 `Auditoria` muestra accesos recientes a la app. No registra contrasenas.

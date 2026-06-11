@@ -92,7 +92,8 @@ La primera pantalla incluye:
 - Vista de auditoria con registro de uso de la app.
 - PWA basica con `manifest.json` y `service-worker.js`.
 - Boton visible `Actualizar version` para limpiar cache local, revisar el service worker y recargar la app con cache-busting.
-- Boton visible `Generar extraccion` en la vista `Extraccion` para ejecutar la corrida GAS y actualizar el tablero con la evidencia generada.
+- Boton visible `Generar extraccion Moodle` en la vista `Extraccion` para ejecutar la extraccion real desde GAS cuando las credenciales Moodle estan configuradas.
+- Boton secundario `Generar muestra` para mantener una corrida anonima de diagnostico sin credenciales.
 - Boton `Instalar` cuando el navegador ofrece instalacion PWA.
 - Footer con version operativa, fecha build y estado de cache.
 
@@ -104,11 +105,13 @@ La app publica muestra la version activa en el footer y en la vista `Corridas`.
 
 Version actual:
 
-`2026.06.11-dual-risk-identifiers`
+`2026.06.11-moodle-real-extraction`
 
 El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
 
-El boton `Generar extraccion` llama a Apps Script con `api=runSample`. La corrida escribe en Google Sheets, guarda una evidencia JSON en Drive y devuelve el reporte para refrescar el tablero. La extraccion real Moodle con credenciales institucionales debe reemplazar esa accion de muestra cuando el flujo seguro de credenciales quede validado en GAS.
+El boton `Generar extraccion Moodle` llama a Apps Script con `api=runMoodleExtraction`. GAS inicia sesion en Moodle usando credenciales guardadas en `Script Properties`, extrae participantes, calificaciones, actividades y participacion cuando Moodle lo permite, escribe en Google Sheets, guarda evidencia JSON en Drive y devuelve el reporte para refrescar el tablero.
+
+El boton `Generar muestra` llama a `api=runSample` y queda solo como diagnostico anonimo.
 
 ## Privacidad Y Acceso
 
@@ -120,6 +123,24 @@ APP_PASSWORD=un-password-largo
 ```
 
 En la arquitectura GAS directa, las credenciales Moodle, tokens compartidos y carpeta Drive deben ir en `Script Properties`, no en GitHub Pages ni en archivos versionados.
+
+Propiedades requeridas para extraccion Moodle real:
+
+```text
+REPORTA_AULA_MOODLE_BASE_URL=https://www.virtual.facen.una.py/gradofacen
+REPORTA_AULA_MOODLE_USERNAME=<usuario Moodle>
+REPORTA_AULA_MOODLE_PASSWORD=<contrasena Moodle>
+```
+
+Funciones GAS disponibles para configurar desde el editor o `clasp run`:
+
+```javascript
+setReportaAulaMoodleCredentials(baseUrl, username, password)
+clearReportaAulaMoodleCredentials()
+getMoodleCredentialStatus()
+```
+
+La app publica solo consulta `credentialStatus`; no muestra ni almacena la contrasena.
 
 Cada acceso queda registrado localmente en `data/access_log.jsonl` con usuario, fecha, ruta, estado HTTP y origen tecnico. No se registran contrasenas.
 

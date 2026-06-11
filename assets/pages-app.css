@@ -858,6 +858,26 @@ select:focus {
   background: var(--soft);
 }
 
+.credential-box {
+  display: grid;
+  gap: 6px;
+  min-height: 66px;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+}
+
+.credential-box span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.credential-box strong {
+  overflow-wrap: anywhere;
+}
+
 .stacked-checks {
   display: grid;
   gap: 10px;

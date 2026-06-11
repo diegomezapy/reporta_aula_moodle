@@ -23,7 +23,17 @@ APP_USERNAME=admin
 APP_PASSWORD=clave-larga
 ```
 
-Las credenciales Moodle pueden ingresarse por formulario o por variables de entorno. No se escriben en reportes ni bitacoras.
+En la publicacion GitHub Pages las credenciales Moodle no se ingresan ni se almacenan en el navegador. Para GAS directo, deben cargarse en `Script Properties`:
+
+```text
+REPORTA_AULA_MOODLE_BASE_URL
+REPORTA_AULA_MOODLE_USERNAME
+REPORTA_AULA_MOODLE_PASSWORD
+```
+
+El backend GAS expone `api=credentialStatus` para verificar configuracion sin revelar la contrasena, y `api=runMoodleExtraction` para ejecutar la extraccion real. `api=runSample` queda como muestra anonima.
+
+Las credenciales locales Python pueden ingresarse por formulario o por variables de entorno. No se escriben en reportes ni bitacoras.
 
 ## Automatizacion
 

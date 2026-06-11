@@ -697,3 +697,124 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 - Mantener los campos `semester_*` y `career_*` como contrato estable del tablero.
 - Calibrar priors y razones de verosimilitud con cohortes historicas antes de presentar el modelo como prediccion estadistica formal.
+
+## 2026-06-11 15:52 - Extraccion Moodle real desde GAS con credenciales seguras
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Aula Moodle.
+- Ruta local: `/tmp/reporta_aula_sheet_button`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Responsable: Codex.
+- Version: `2026.06.11-moodle-real-extraction`.
+
+### Objetivo de la intervencion
+
+- Sustituir el flujo unico de muestra por una extraccion Moodle real desde GAS.
+- Evitar que GitHub Pages pida o almacene contrasenas.
+- Habilitar verificacion de credenciales Moodle configuradas en `Script Properties`.
+
+### Diagnostico inicial
+
+- El boton `Generar extraccion` llamaba a `api=runSample`.
+- La app solo solicitaba ID de curso porque la corrida era demo anonima.
+- No existia endpoint GAS para iniciar sesion en Moodle ni leer participantes/calificaciones/participacion.
+
+### Acciones realizadas
+
+- Se agregaron propiedades seguras:
+  - `REPORTA_AULA_MOODLE_BASE_URL`.
+  - `REPORTA_AULA_MOODLE_USERNAME`.
+  - `REPORTA_AULA_MOODLE_PASSWORD`.
+- Se agregaron funciones GAS:
+  - `setReportaAulaMoodleCredentials(baseUrl, username, password)`.
+  - `clearReportaAulaMoodleCredentials()`.
+  - `getMoodleCredentialStatus()`.
+- Se agrego endpoint `api=credentialStatus` por JSONP.
+- Se agrego endpoint `api=runMoodleExtraction` con login Moodle por cookies y extraccion HTML defensiva.
+- Se agrego escritura de tablas crudas:
+  - `GAS_PARTICIPANTES`.
+  - `GAS_CALIFICACIONES`.
+  - `GAS_ACTIVIDADES`.
+  - `GAS_PARTICIPACION`.
+  - `GAS_TUTORES`.
+  - `GAS_ERRORES`.
+- Se mantuvo `api=runSample` como muestra anonima secundaria.
+- Se cambio la app publica:
+  - boton principal `Generar extraccion Moodle`;
+  - boton secundario `Generar muestra`;
+  - boton `Ver credenciales GAS`;
+  - estado visible `Credenciales Moodle`.
+- Se actualizo version/cache a `2026.06.11-moodle-real-extraction`.
+- Se actualizaron README, manual tecnico y manual de usuario.
+
+### Archivos modificados
+
+- `gas/Code.gs`.
+- `index.html`.
+- `assets/pages-app.js`.
+- `assets/pages-app.css`.
+- `service-worker.js`.
+- `README.md`.
+- `docs/manual_usuario.md`.
+- `docs/manual_tecnico.md`.
+- `BITACORA.md`.
+
+### Comandos o scripts ejecutados
+
+- `node --check assets/pages-app.js`.
+- `node --input-type=commonjs --check - < gas/Code.gs`.
+- `python3 -m compileall app tests`.
+- `/Users/diegobernardomezabogado/reporta_aula_moodle/.venv/bin/python -m pytest`.
+- `git diff --check`.
+- `clasp push -f`.
+- `clasp deploy -i AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA -d 'Reporta Aula Moodle Moodle real extraction 20260611'`.
+- `curl` contra `api=credentialStatus`.
+- `curl` contra `api=runMoodleExtraction`.
+- `curl` contra `api=runSample`.
+- `python3 -m http.server 8071`.
+
+### Resultados verificados
+
+- Sintaxis JS y GAS correcta.
+- Pruebas Python: 5 passed, 1 warning LibreSSL/urllib3.
+- Deployment GAS actualizado: `AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA @6`.
+- `api=credentialStatus`: responde `configured:false` sin exponer secretos.
+- `api=runMoodleExtraction`: responde error controlado cuando faltan credenciales.
+- `api=runSample`: sigue generando muestra anonima y escribe en Sheets/Drive.
+- Servidor local `http://127.0.0.1:8071/` sirve `Generar extraccion Moodle`, `Generar muestra`, `Ver credenciales GAS` y assets `20260611-moodle-real-extraction`.
+
+### Errores o incidentes
+
+- No hay credenciales reales cargadas en GAS al momento de esta intervencion, por lo que no se pudo validar login real ni extraccion real contra Moodle.
+
+### Soluciones aplicadas
+
+- Se evita pedir contrasenas en GitHub Pages.
+- Se centraliza la autenticacion Moodle en GAS mediante `Script Properties`.
+- Se registra error controlado en `GAS_ERRORES` cuando falta configuracion.
+
+### Pendientes
+
+- Cargar credenciales reales en Apps Script `Script Properties`.
+- Ejecutar `api=runMoodleExtraction` con credenciales reales y validar:
+  - login Moodle;
+  - participantes;
+  - calificaciones;
+  - actividades;
+  - participacion estudiantil;
+  - participacion tutorial;
+  - escritura Sheets/Drive.
+- Publicar commit y verificar GitHub Pages con assets `20260611-moodle-real-extraction`.
+
+### Riesgos
+
+- Moodle puede cambiar la estructura HTML de tablas; por eso se guardan tablas crudas y errores.
+- La extraccion de participacion puede tardar si se consultan demasiadas actividades; se agrego `Actividades max.`.
+
+### Recomendaciones
+
+- Configurar inicialmente `maxActivities=5` para la primera prueba real y luego subirlo gradualmente.
+- No usar cuentas personales con permisos excesivos; crear o usar una cuenta Moodle institucional de consulta.

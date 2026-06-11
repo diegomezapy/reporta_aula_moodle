@@ -1,6 +1,6 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.3_dual_desertion";
-const APP_VERSION = "2026.06.11-dual-risk-identifiers";
+const APP_VERSION = "2026.06.11-moodle-real-extraction";
 const APP_BUILD_DATE = "2026-06-11";
 const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
 const RISK_MODES = {
@@ -89,6 +89,9 @@ const els = {
   runForm: $("#runForm"),
   runButton: $("#runButton"),
   generateExtraction: $("#generateExtraction"),
+  generateDemo: $("#generateDemo"),
+  checkMoodleCredentials: $("#checkMoodleCredentials"),
+  credentialStatus: $("#credentialStatus"),
   updateVersion: $("#updateVersion"),
   installApp: $("#installApp"),
   versionStamp: $("#versionStamp"),
@@ -643,14 +646,44 @@ function loadGasReport(endpoint = GAS_REPORT_URL) {
   });
 }
 
-function runGasExtraction(endpoint = GAS_REPORT_URL) {
+function loadCredentialStatus(endpoint = GAS_REPORT_URL) {
+  return new Promise((resolve, reject) => {
+    const callbackName = `reportaAulaCreds_${Date.now()}_${Math.round(Math.random() * 10000)}`;
+    const script = document.createElement("script");
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error("Tiempo de espera agotado al consultar credenciales GAS"));
+    }, 10000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[callbackName];
+      script.remove();
+    }
+    window[callbackName] = (payload) => {
+      cleanup();
+      if (!payload || payload.ok !== true) {
+        reject(new Error("GAS no devolvio estado de credenciales"));
+        return;
+      }
+      resolve(payload);
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("No se pudo consultar credentialStatus en GAS"));
+    };
+    script.src = gasEndpoint(endpoint, { api: "credentialStatus", callback: callbackName, ts: Date.now() });
+    document.head.appendChild(script);
+  });
+}
+
+function runGasExtraction(endpoint = GAS_REPORT_URL, api = "runMoodleExtraction") {
   return new Promise((resolve, reject) => {
     const callbackName = `reportaAulaRun_${Date.now()}_${Math.round(Math.random() * 10000)}`;
     const script = document.createElement("script");
     const timer = setTimeout(() => {
       cleanup();
       reject(new Error("Tiempo de espera agotado al generar la extraccion"));
-    }, 20000);
+    }, api === "runMoodleExtraction" ? 90000 : 20000);
     function cleanup() {
       clearTimeout(timer);
       delete window[callbackName];
@@ -677,11 +710,13 @@ function runGasExtraction(endpoint = GAS_REPORT_URL) {
     };
     const courseId = document.querySelector("[name='course_id']")?.value || "1718";
     const spreadsheetId = document.querySelector("[name='spreadsheet_id']")?.value || "";
+    const maxActivities = document.querySelector("[name='max_activities']")?.value || "25";
     script.src = gasEndpoint(endpoint, {
-      api: "runSample",
+      api,
       callback: callbackName,
       courseId,
       spreadsheetId,
+      maxActivities,
       courseTitle: state.report?.course_title || "Analitica de Big Data - Extraccion GAS",
       ts: Date.now(),
     });
@@ -1266,25 +1301,69 @@ async function testGas(event) {
   }
 }
 
-async function generateExtraction() {
+function renderCredentialStatus(payload) {
+  if (!els.credentialStatus) return;
+  if (!payload) {
+    els.credentialStatus.textContent = "Sin verificar";
+    return;
+  }
+  if (payload.configured) {
+    els.credentialStatus.textContent = `Configuradas para ${payload.usernameMasked || "usuario Moodle"} en ${payload.baseUrl || "Moodle"}`;
+    els.credentialStatus.className = "good";
+    els.authState.textContent = "Moodle real";
+    return;
+  }
+  els.credentialStatus.textContent = "No configuradas en Script Properties";
+  els.credentialStatus.className = "warn";
+}
+
+async function checkMoodleCredentials() {
+  const base = String(els.gasUrl.value || GAS_REPORT_URL).trim().replace(/\/+$/, "");
+  localStorage.setItem("reportaAulaGasUrl", base);
+  setStatus("Verificando credenciales", "Consultando Script Properties desde Apps Script.");
+  try {
+    const status = await loadCredentialStatus(base);
+    renderCredentialStatus(status);
+    setStatus(
+      status.configured ? "Credenciales configuradas" : "Credenciales pendientes",
+      status.configured
+        ? `GAS tiene credenciales Moodle para ${status.usernameMasked}.`
+        : `Configure ${status.propertyNames.join(", ")} en Apps Script.`,
+      !status.configured,
+    );
+  } catch (error) {
+    setStatus("Credenciales no verificadas", error.message || String(error), true);
+  }
+}
+
+async function generateExtraction(api = "runMoodleExtraction") {
   const base = String(els.gasUrl.value || GAS_REPORT_URL).trim().replace(/\/+$/, "");
   localStorage.setItem("reportaAulaGasUrl", base);
   els.generateExtraction.disabled = true;
-  setStatus("Generando extraccion", "Apps Script esta escribiendo en Sheets y guardando evidencia en Drive.");
+  if (els.generateDemo) els.generateDemo.disabled = true;
+  const isMoodle = api === "runMoodleExtraction";
+  setStatus(
+    isMoodle ? "Extrayendo Moodle" : "Generando muestra",
+    isMoodle
+      ? "Apps Script esta iniciando sesion en Moodle, leyendo evidencias y guardando en Sheets/Drive."
+      : "Apps Script esta escribiendo una muestra anonima en Sheets/Drive.",
+  );
   try {
-    const result = await runGasExtraction(base);
+    const result = await runGasExtraction(base, api);
     state.report = result.report;
     state.source = "gas";
     els.googleState.textContent = "GAS conectado";
     els.googleState.className = "pill good";
-    els.authState.textContent = "Extraccion generada";
+    els.authState.textContent = isMoodle ? "Moodle extraido" : "Muestra generada";
     const evidence = result.payload.evidence?.file_name ? ` Evidencia: ${result.payload.evidence.file_name}.` : "";
-    setStatus("Extraccion generada", `La corrida fue guardada en Sheets/Drive.${evidence}`);
+    setStatus(isMoodle ? "Extraccion Moodle generada" : "Muestra generada", `La corrida fue guardada en Sheets/Drive.${evidence}`);
     renderDashboard();
   } catch (error) {
-    setStatus("Extraccion no generada", error.message || String(error), true);
+    setStatus(isMoodle ? "Extraccion Moodle no generada" : "Muestra no generada", error.message || String(error), true);
+    if (isMoodle) checkMoodleCredentials();
   } finally {
     els.generateExtraction.disabled = false;
+    if (els.generateDemo) els.generateDemo.disabled = false;
   }
 }
 
@@ -1315,10 +1394,13 @@ async function init() {
   });
   els.updateVersion.addEventListener("click", updateAppVersion);
   els.installApp.addEventListener("click", installCurrentApp);
-  els.generateExtraction.addEventListener("click", generateExtraction);
+  els.generateExtraction.addEventListener("click", () => generateExtraction("runMoodleExtraction"));
+  if (els.generateDemo) els.generateDemo.addEventListener("click", () => generateExtraction("runSample"));
+  if (els.checkMoodleCredentials) els.checkMoodleCredentials.addEventListener("click", checkMoodleCredentials);
   els.runForm.addEventListener("submit", testGas);
   els.gasUrl.value = localStorage.getItem("reportaAulaGasUrl") || GAS_REPORT_URL;
   await registerServiceWorker();
+  checkMoodleCredentials();
   await loadAndRender();
 }
 

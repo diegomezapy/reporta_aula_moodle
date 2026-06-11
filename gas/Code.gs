@@ -1,8 +1,12 @@
 const DEFAULT_SPREADSHEET_ID = '1Ro2XmGKp9GH6Hj1zUtn_GW8WaMk4nlfVscO8vLO8a_8';
 const SECRET_PROPERTY = 'REPORTA_AULA_SECRET';
 const DRIVE_FOLDER_PROPERTY = 'REPORTA_AULA_DRIVE_FOLDER_ID';
+const MOODLE_BASE_URL_PROPERTY = 'REPORTA_AULA_MOODLE_BASE_URL';
+const MOODLE_USERNAME_PROPERTY = 'REPORTA_AULA_MOODLE_USERNAME';
+const MOODLE_PASSWORD_PROPERTY = 'REPORTA_AULA_MOODLE_PASSWORD';
 const DEFAULT_DRIVE_FOLDER_NAME = 'Reporta Aula Moodle Evidencias';
 const SAMPLE_MODEL_VERSION = 'gas_demo_bayes_v0.2_dual_desertion';
+const MOODLE_MODEL_VERSION = 'gas_moodle_bayes_v0.1';
 
 function doGet(e) {
   const params = (e && e.parameter) || {};
@@ -14,6 +18,14 @@ function doGet(e) {
     return jsonOrJsonp_(runGasSample(params), params.callback);
   }
 
+  if (params.api === 'credentialStatus') {
+    return jsonOrJsonp_(getMoodleCredentialStatus(), params.callback);
+  }
+
+  if (params.api === 'runMoodleExtraction') {
+    return jsonOrJsonp_(runMoodleExtraction(params), params.callback);
+  }
+
   if (params.api === '1' || params.format === 'json') {
     return jsonOrJsonp_({
       ok: true,
@@ -22,6 +34,7 @@ function doGet(e) {
       driveFolderId: getDriveFolderId_(),
       driveFolderUrl: getDriveFolderUrl_(),
       mode: 'gas-webapp',
+      moodleCredentialStatus: getMoodleCredentialStatus(),
     }, params.callback);
   }
 
@@ -37,6 +50,15 @@ function doPost(e) {
     const payload = JSON.parse((e.postData && e.postData.contents) || '{}');
     if (payload.action === 'runGasSample') {
       return json_(runGasSample(payload.form || {}));
+    }
+
+    if (payload.action === 'configureMoodleCredentials') {
+      validateAdminSecret_(payload.secret || '');
+      return json_(configureMoodleCredentials_(payload.form || payload));
+    }
+
+    if (payload.action === 'runMoodleExtraction') {
+      return json_(runMoodleExtraction(payload.form || payload));
     }
 
     validateSecret_(payload.secret || '');
@@ -87,6 +109,45 @@ function runGasSample(form) {
   };
 }
 
+function runMoodleExtraction(form) {
+  const startedAt = new Date();
+  const spreadsheetId = (form && form.spreadsheetId) || DEFAULT_SPREADSHEET_ID;
+  const courseId = Number((form && form.courseId) || 1718);
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  setupGasSampleWorkbook_(ss);
+
+  try {
+    const credentials = getMoodleCredentials_();
+    const report = buildMoodleReport_(credentials, courseId, form || {});
+    const evidence = saveEvidenceFile_(report, { report }, 'moodle_extraction');
+    writeGasSample_(ss, report, evidence);
+    writeMoodleRawSheets_(ss, report);
+    appendEvidence_(ss, report, evidence);
+    appendAudit_(ss, 'runMoodleExtraction', 'Extraccion Moodle real ejecutada para curso ' + courseId, startedAt);
+    return {
+      ok: true,
+      mode: 'moodle-real',
+      report,
+      spreadsheetId,
+      driveFolderId: evidence.folder_id,
+      driveFolderUrl: evidence.folder_url,
+      evidence,
+      generatedAt: report.generated_at,
+      elapsedMs: new Date().getTime() - startedAt.getTime(),
+    };
+  } catch (error) {
+    appendGasError_(ss, 'runMoodleExtraction', error, 'curso ' + courseId);
+    return {
+      ok: false,
+      mode: 'moodle-real',
+      error: String(error && error.message ? error.message : error),
+      credentialStatus: getMoodleCredentialStatus(),
+      spreadsheetId,
+      elapsedMs: new Date().getTime() - startedAt.getTime(),
+    };
+  }
+}
+
 function getLatestGasSample() {
   const ss = SpreadsheetApp.openById(DEFAULT_SPREADSHEET_ID);
   const sheet = ss.getSheetByName('GAS_RESUMEN');
@@ -128,6 +189,18 @@ function setReportaAulaSecret(secret) {
 function setReportaAulaDriveFolderId(folderId) {
   PropertiesService.getScriptProperties().setProperty(DRIVE_FOLDER_PROPERTY, folderId);
   return { ok: true, driveFolderId: folderId, driveFolderUrl: getDriveFolderUrl_() };
+}
+
+function setReportaAulaMoodleCredentials(baseUrl, username, password) {
+  return configureMoodleCredentials_({ baseUrl, username, password });
+}
+
+function clearReportaAulaMoodleCredentials() {
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty(MOODLE_BASE_URL_PROPERTY);
+  props.deleteProperty(MOODLE_USERNAME_PROPERTY);
+  props.deleteProperty(MOODLE_PASSWORD_PROPERTY);
+  return { ok: true, cleared: true };
 }
 
 function initializeReportaAulaWorkbook() {
@@ -201,7 +274,13 @@ function setupGasSampleWorkbook_(ss) {
   ]);
   ensureSheetWithHeaders_(ss, 'GAS_RIESGO', ['modalidad', 'nivel', 'cantidad']);
   ensureSheetWithHeaders_(ss, 'GAS_AUDITORIA', ['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
+  ensureSheetWithHeaders_(ss, 'GAS_ERRORES', ['timestamp', 'usuario', 'accion', 'error', 'detalle']);
   ensureSheetWithHeaders_(ss, 'GAS_EVIDENCIAS', ['timestamp', 'run_id', 'tipo', 'archivo', 'url', 'folder_id', 'folder_url']);
+  ensureSheetWithHeaders_(ss, 'GAS_PARTICIPANTES', ['user_id', 'name', 'username', 'email', 'roles', 'last_access', 'status']);
+  ensureSheetWithHeaders_(ss, 'GAS_CALIFICACIONES', ['user_id', 'name', 'username', 'email', 'grade_cells_with_value', 'course_total']);
+  ensureSheetWithHeaders_(ss, 'GAS_ACTIVIDADES', ['cmid', 'module', 'name', 'url']);
+  ensureSheetWithHeaders_(ss, 'GAS_PARTICIPACION', ['activity_cmid', 'activity_name', 'action', 'role_id', 'role_name', 'user_id', 'student_name', 'count']);
+  ensureSheetWithHeaders_(ss, 'GAS_TUTORES', ['tutor_id', 'tutor_name', 'tutor_email', 'tutor_role', 'assigned_students', 'tutor_actions_registered', 'tutor_forum_replies', 'tutor_feedback_count', 'tutor_response_hours', 'tutor_activity_coverage', 'tutor_followup_signal']);
 }
 
 function buildDemoReport_(courseId, courseTitle) {
@@ -242,6 +321,373 @@ function buildDemoReport_(courseId, courseTitle) {
     tutor_activity_summary: buildTutorActivitySummary_(summaries),
     kpis: buildKpis_(summaries),
   };
+}
+
+function buildMoodleReport_(credentials, courseId, form) {
+  const client = createMoodleClient_(credentials.baseUrl);
+  moodleLogin_(client, credentials.username, credentials.password);
+  const courseHtml = moodleFetch_(client, '/course/view.php?id=' + courseId);
+  if (isMoodleLoginPage_(courseHtml)) {
+    throw new Error('Moodle redirigio al login despues de autenticar. Revise permisos del usuario para el curso.');
+  }
+
+  const courseTitle = extractTitle_(courseHtml) || (form.courseTitle || 'Curso Moodle ' + courseId);
+  const participants = extractMoodleParticipants_(moodleFetch_(client, '/user/index.php?id=' + courseId + '&perpage=5000'));
+  const gradeRows = extractMoodleGrades_(moodleFetch_(client, '/grade/report/grader/index.php?id=' + courseId), participants);
+  const activities = extractMoodleActivities_(courseHtml);
+  const maxActivities = Math.max(1, Math.min(Number(form.maxActivities || 25), 60));
+  const selectedActivities = activities.slice(0, maxActivities);
+  const participationRows = extractMoodleParticipation_(client, courseId, selectedActivities, [{ id: '5', name: 'Estudiante' }]);
+  const tutorRows = String(form.includeTutorParticipation || 'true') === 'false'
+    ? []
+    : extractMoodleParticipation_(client, courseId, selectedActivities, [{ id: '3', name: 'Docente' }, { id: '4', name: 'Tutor' }]);
+  const tutorProfiles = buildTutorProfilesFromParticipation_(tutorRows);
+  const summaries = buildMoodleSummaries_(participants, gradeRows, participationRows, tutorRows, tutorProfiles);
+  const effectiveTutorProfiles = tutorProfiles.length ? tutorProfiles : buildTutorProfiles_(summaries);
+  const tutorSummary = buildTutorSummary_(summaries, effectiveTutorProfiles);
+  const report = {
+    run_id: 'moodle-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss'),
+    generated_at: new Date().toISOString(),
+    course_id: courseId,
+    course_title: courseTitle,
+    moodle_base_url: credentials.baseUrl,
+    model_version: MOODLE_MODEL_VERSION,
+    extraction_mode: 'moodle-real',
+    source_counts: {
+      participants: participants.length,
+      grade_rows: gradeRows.length,
+      activities: activities.length,
+      activities_extracted_for_participation: selectedActivities.length,
+      participation_rows: participationRows.length,
+      tutor_participation_rows: tutorRows.length,
+    },
+    participants,
+    grade_rows: gradeRows,
+    activities,
+    participation_rows: participationRows,
+    tutor_participation_rows: tutorRows,
+    summaries,
+    tutor_profiles: effectiveTutorProfiles,
+    tutor_summary: tutorSummary,
+    tutor_activity_summary: buildTutorActivitySummaryFromRows_(tutorRows),
+    activity_summary: buildActivitySummaryFromRows_(participationRows),
+    kpis: buildKpis_(summaries),
+  };
+
+  if (!participants.length) {
+    throw new Error('Moodle respondio, pero no se detectaron participantes en el curso ' + courseId + '.');
+  }
+  return report;
+}
+
+function createMoodleClient_(baseUrl) {
+  return {
+    baseUrl: String(baseUrl || '').replace(/\/+$/, ''),
+    cookies: {},
+  };
+}
+
+function moodleFetch_(client, pathOrUrl, options) {
+  const url = /^https?:\/\//i.test(pathOrUrl)
+    ? pathOrUrl
+    : client.baseUrl + '/' + String(pathOrUrl || '').replace(/^\/+/, '');
+  const requestOptions = Object.assign({
+    method: 'get',
+    followRedirects: true,
+    muteHttpExceptions: true,
+    headers: {
+      'User-Agent': 'reporta-aula-moodle-gas/0.1',
+      'Cookie': cookieHeader_(client.cookies),
+    },
+  }, options || {});
+  if (!requestOptions.headers.Cookie) {
+    delete requestOptions.headers.Cookie;
+  }
+  const response = UrlFetchApp.fetch(url, requestOptions);
+  rememberCookies_(client, response);
+  const code = response.getResponseCode();
+  const text = response.getContentText();
+  if (code >= 400) {
+    throw new Error('Moodle devolvio HTTP ' + code + ' al consultar ' + url);
+  }
+  return text;
+}
+
+function moodleLogin_(client, username, password) {
+  const loginHtml = moodleFetch_(client, '/login/index.php');
+  const token = extractInputValue_(loginHtml, 'logintoken');
+  const payload = {
+    username,
+    password,
+  };
+  if (token) payload.logintoken = token;
+  const result = moodleFetch_(client, '/login/index.php', {
+    method: 'post',
+    payload,
+  });
+  if (loginFailed_(result)) {
+    throw new Error('No se pudo iniciar sesion en Moodle. Revise usuario, contrasena y URL base.');
+  }
+}
+
+function rememberCookies_(client, response) {
+  const headers = response.getAllHeaders();
+  const raw = headers['Set-Cookie'] || headers['set-cookie'];
+  if (!raw) return;
+  const values = Array.isArray(raw) ? raw : [raw];
+  values.forEach((header) => {
+    String(header).split(/,(?=[^;,]+=)/).forEach((cookie) => {
+      const pair = cookie.split(';')[0];
+      const eq = pair.indexOf('=');
+      if (eq > 0) {
+        client.cookies[pair.substring(0, eq).trim()] = pair.substring(eq + 1).trim();
+      }
+    });
+  });
+}
+
+function cookieHeader_(cookies) {
+  return Object.keys(cookies || {}).map((key) => key + '=' + cookies[key]).join('; ');
+}
+
+function loginFailed_(html) {
+  const clean = stripTags_(html).toLowerCase();
+  return clean.indexOf('loginerrormessage') >= 0 ||
+    clean.indexOf('datos erroneos') >= 0 ||
+    clean.indexOf('invalid login') >= 0 ||
+    (clean.indexOf('nombre de usuario') >= 0 && clean.indexOf('contrasena') >= 0 && clean.indexOf('recordar nombre') >= 0);
+}
+
+function isMoodleLoginPage_(html) {
+  const clean = stripTags_(html).toLowerCase();
+  return clean.indexOf('recordar nombre de usuario') >= 0 || clean.indexOf('logintoken') >= 0 && clean.indexOf('nombre de usuario') >= 0;
+}
+
+function extractMoodleParticipants_(html) {
+  const rows = chooseRows_(parseHtmlTables_(html), ['direccion de correo', 'email', 'roles', 'ultimo acceso']);
+  return rows.map((row) => {
+    const username = cellValue_(row, ['nombre de usuario', 'username'], []);
+    const name = cellValue_(row, ['nombre ordenar', 'apellido', 'name'], ['nombre de usuario', 'username']) || cellValue_(row, ['nombre'], ['nombre de usuario']);
+    return {
+      user_id: row.user_id || username || keyNorm_(name),
+      name,
+      username,
+      email: cellValue_(row, ['direccion de correo', 'correo', 'email'], []),
+      roles: cellValue_(row, ['roles', 'rol', 'role'], []),
+      last_access: cellValue_(row, ['ultimo acceso al curso', 'ultimo acceso', 'last access'], []),
+      status: cellValue_(row, ['estatus', 'estado', 'status'], []),
+    };
+  }).filter((row) => row.name && (!row.roles || keyNorm_(row.roles).indexOf('estudiante') >= 0 || keyNorm_(row.roles).indexOf('student') >= 0));
+}
+
+function extractMoodleGrades_(html, participants) {
+  const rows = chooseRows_(parseHtmlTables_(html), ['nombre', 'total', 'calificacion', 'grade']);
+  const participantByUsername = {};
+  participants.forEach((participant) => {
+    if (participant.username) participantByUsername[keyNorm_(participant.username)] = participant;
+    if (participant.name) participantByUsername[keyNorm_(participant.name)] = participant;
+  });
+  return rows.map((row) => {
+    const username = cellValue_(row, ['nombre de usuario', 'username'], []);
+    const name = cellValue_(row, ['nombre ordenar', 'apellido', 'name'], ['nombre de usuario', 'username']) || cellValue_(row, ['nombre'], ['nombre de usuario']);
+    const participant = participantByUsername[keyNorm_(username)] || participantByUsername[keyNorm_(name)] || {};
+    const gradeCells = Object.keys(row.cells).reduce((count, key) => {
+      const clean = keyNorm_(key);
+      if (clean.indexOf('nombre') >= 0 || clean.indexOf('email') >= 0 || clean.indexOf('correo') >= 0 || clean.indexOf('usuario') >= 0) return count;
+      return /\d/.test(String(row.cells[key] || '')) ? count + 1 : count;
+    }, 0);
+    return {
+      user_id: row.user_id || participant.user_id || username || keyNorm_(name),
+      name: name || participant.name || '',
+      username: username || participant.username || '',
+      email: cellValue_(row, ['direccion de correo', 'correo', 'email'], []) || participant.email || '',
+      grade_cells_with_value: gradeCells,
+      course_total: courseTotalFromRow_(row),
+    };
+  }).filter((row) => row.name || row.username);
+}
+
+function extractMoodleActivities_(html) {
+  const activities = {};
+  const linkRegex = /<a\b[^>]*href=["']([^"']*\/mod\/([^\/]+)\/view\.php\?id=(\d+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = linkRegex.exec(html)) !== null) {
+    const name = stripTags_(match[4]);
+    if (!name || activities[match[3]]) continue;
+    activities[match[3]] = {
+      cmid: match[3],
+      module: match[2],
+      name,
+      url: absoluteMoodleUrl_(match[1]),
+    };
+  }
+  return Object.keys(activities).map((key) => activities[key]);
+}
+
+function extractMoodleParticipation_(client, courseId, activities, roles) {
+  const rows = [];
+  roles.forEach((role) => {
+    activities.forEach((activity) => {
+      try {
+        const html = moodleFetch_(client, '/report/participation/index.php?id=' + courseId + '&roleid=' + encodeURIComponent(role.id) + '&instanceid=' + encodeURIComponent(activity.cmid) + '&perpage=5000');
+        const tableRows = chooseRows_(parseHtmlTables_(html), ['nombre', 'acciones', 'actions', 'si', 'yes']);
+        tableRows.forEach((row) => {
+          const name = cellValue_(row, ['nombre ordenar', 'apellido', 'name'], ['nombre de usuario', 'username']) || cellValue_(row, ['nombre'], ['nombre de usuario']);
+          if (!name) return;
+          rows.push({
+            activity_cmid: activity.cmid,
+            activity_name: activity.name,
+            action: 'participacion',
+            role_id: role.id,
+            role_name: role.name,
+            user_id: row.user_id || cellValue_(row, ['nombre de usuario', 'username'], []) || keyNorm_(name),
+            student_name: name,
+            count: countFromParticipationRow_(row),
+          });
+        });
+      } catch (error) {
+        rows.push({
+          activity_cmid: activity.cmid,
+          activity_name: activity.name,
+          action: 'error',
+          role_id: role.id,
+          role_name: role.name,
+          user_id: '',
+          student_name: 'ERROR: ' + String(error.message || error).substring(0, 160),
+          count: 0,
+        });
+      }
+    });
+  });
+  return rows.filter((row) => row.action !== 'error' || row.student_name);
+}
+
+function buildMoodleSummaries_(participants, gradeRows, participationRows, tutorRows, tutorProfiles) {
+  const gradeByKey = {};
+  gradeRows.forEach((row) => {
+    [row.user_id, row.username, row.name].forEach((key) => {
+      if (key) gradeByKey[keyNorm_(key)] = row;
+    });
+  });
+  const participationByKey = {};
+  const forumByKey = {};
+  participationRows.forEach((row) => {
+    const key = keyNorm_(row.user_id || row.student_name);
+    participationByKey[key] = (participationByKey[key] || 0) + Number(row.count || 0);
+    if (keyNorm_(row.activity_name).indexOf('foro') >= 0 || keyNorm_(row.activity_name).indexOf('forum') >= 0) {
+      forumByKey[key] = (forumByKey[key] || 0) + Number(row.count || 0);
+    }
+  });
+  const tutorStats = aggregateTutorStats_(tutorRows, tutorProfiles);
+  return participants.map((participant, index) => {
+    const key = keyNorm_(participant.user_id || participant.username || participant.name);
+    const grade = gradeByKey[key] || gradeByKey[keyNorm_(participant.username)] || gradeByKey[keyNorm_(participant.name)] || {};
+    const actions = Number(participationByKey[key] || participationByKey[keyNorm_(participant.username)] || participationByKey[keyNorm_(participant.name)] || 0);
+    const gradeCount = Number(grade.grade_cells_with_value || 0);
+    const item = {
+      user_id: participant.user_id || participant.username || 'moodle-' + (index + 1),
+      student_moodle_id: 'MOODLE-' + (participant.user_id || participant.username || pad2_(index + 1)),
+      student_document_id: participant.username || participant.user_id || '',
+      name: participant.name,
+      email: participant.email,
+      cohort: '',
+      career: '',
+      semester_number: 1,
+      enrollment_status: participant.status || 'Regular',
+      academic_load: Math.max(1, gradeCount || 1),
+      failed_previous_subjects: 0,
+      program_progress_percent: 0,
+      scholarship_status: 'Sin dato',
+      work_shift: 'Sin dato',
+      tutor_id: tutorStats.tutor_id,
+      tutor_name: tutorStats.tutor_name,
+      tutor_email: tutorStats.tutor_email,
+      tutor_role: tutorStats.tutor_role,
+      tutor_actions_registered: tutorStats.tutor_actions_registered,
+      tutor_forum_replies: tutorStats.tutor_forum_replies,
+      tutor_feedback_count: tutorStats.tutor_feedback_count,
+      tutor_response_hours: tutorStats.tutor_response_hours,
+      tutor_activity_coverage: tutorStats.tutor_activity_coverage,
+      tutor_followup_signal: tutorStats.tutor_followup_signal,
+      actions_registered: actions,
+      forum_posts: Number(forumByKey[key] || 0),
+      grade_cells_with_value: gradeCount,
+      days_since_last_access: daysFromText_(participant.last_access),
+    };
+    return buildStudentSummary_(item);
+  });
+}
+
+function buildTutorProfilesFromParticipation_(tutorRows) {
+  const byTutor = {};
+  tutorRows.forEach((row) => {
+    if (!row.user_id && !row.student_name) return;
+    const id = row.user_id || keyNorm_(row.student_name);
+    if (!byTutor[id]) {
+      byTutor[id] = {
+        tutor_id: id,
+        tutor_name: row.student_name || 'Tutor Moodle',
+        tutor_email: '',
+        tutor_role: row.role_name || 'Tutor',
+        assigned_students: 0,
+        tutor_actions_registered: 0,
+        tutor_forum_replies: 0,
+        tutor_feedback_count: 0,
+        tutor_response_hours: 24,
+        tutor_activity_coverage: 0,
+        tutor_followup_signal: 'Media',
+        _activities: {},
+      };
+    }
+    byTutor[id].tutor_actions_registered += Number(row.count || 0);
+    if (keyNorm_(row.activity_name).indexOf('foro') >= 0 || keyNorm_(row.activity_name).indexOf('forum') >= 0) {
+      byTutor[id].tutor_forum_replies += Number(row.count || 0);
+    }
+    if (Number(row.count || 0) > 0) {
+      byTutor[id].tutor_feedback_count += 1;
+      byTutor[id]._activities[row.activity_cmid || row.activity_name] = true;
+    }
+  });
+  return Object.keys(byTutor).map((key) => {
+    const tutor = byTutor[key];
+    tutor.tutor_activity_coverage = Math.min(1, Object.keys(tutor._activities).length / 10);
+    tutor.tutor_followup_signal = tutor.tutor_actions_registered >= 30 ? 'Alta' : tutor.tutor_actions_registered > 0 ? 'Media' : 'Bajo';
+    delete tutor._activities;
+    return tutor;
+  });
+}
+
+function aggregateTutorStats_(tutorRows, tutorProfiles) {
+  const profiles = tutorProfiles || [];
+  const actions = tutorRows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+  const forums = tutorRows.reduce((sum, row) => sum + (keyNorm_(row.activity_name).indexOf('foro') >= 0 || keyNorm_(row.activity_name).indexOf('forum') >= 0 ? Number(row.count || 0) : 0), 0);
+  const first = profiles[0] || {};
+  return {
+    tutor_id: first.tutor_id || 'TUTOR-AGREGADO',
+    tutor_name: first.tutor_name || 'Equipo docente Moodle',
+    tutor_email: first.tutor_email || '',
+    tutor_role: first.tutor_role || 'Docente/Tutor',
+    tutor_actions_registered: actions,
+    tutor_forum_replies: forums,
+    tutor_feedback_count: tutorRows.filter((row) => Number(row.count || 0) > 0).length,
+    tutor_response_hours: actions > 0 ? 24 : 96,
+    tutor_activity_coverage: Math.min(1, tutorRows.filter((row) => Number(row.count || 0) > 0).length / 10),
+    tutor_followup_signal: actions >= 30 ? 'Alta' : actions > 0 ? 'Media' : 'Bajo',
+  };
+}
+
+function buildActivitySummaryFromRows_(rows) {
+  const grouped = {};
+  rows.forEach((row) => {
+    const key = (row.activity_cmid || '') + '|' + (row.activity_name || '') + '|' + (row.action || '');
+    if (!grouped[key]) grouped[key] = { activity_cmid: row.activity_cmid, activity_name: row.activity_name, action: row.action, count: 0 };
+    grouped[key].count += Number(row.count || 0);
+  });
+  return Object.keys(grouped).map((key) => grouped[key]);
+}
+
+function buildTutorActivitySummaryFromRows_(rows) {
+  return buildActivitySummaryFromRows_(rows).sort((a, b) => Number(b.count || 0) - Number(a.count || 0)).slice(0, 30);
 }
 
 function buildStudentSummary_(item) {
@@ -618,6 +1064,246 @@ function objectFromRow_(headers, row) {
   }, {});
 }
 
+function parseHtmlTables_(html) {
+  const tables = [];
+  const tableRegex = /<table\b[\s\S]*?<\/table>/gi;
+  let tableMatch;
+  while ((tableMatch = tableRegex.exec(html)) !== null) {
+    const tableHtml = tableMatch[0];
+    const rowMatches = tableHtml.match(/<tr\b[\s\S]*?<\/tr>/gi) || [];
+    if (!rowMatches.length) continue;
+    const headerCells = extractCells_(rowMatches[0]).map((cell, index) => cleanHeader_(cell.text || ('col_' + (index + 1))));
+    if (!headerCells.length) continue;
+    const rows = [];
+    rowMatches.slice(1).forEach((rowHtml) => {
+      const cells = extractCells_(rowHtml);
+      if (cells.length < 2) return;
+      const row = { cells: {}, links: [], user_id: '' };
+      cells.forEach((cell, index) => {
+        row.cells[headerCells[index] || ('col_' + (index + 1))] = cell.text;
+        row.links = row.links.concat(cell.links);
+      });
+      row.user_id = userIdFromLinks_(row.links);
+      rows.push(row);
+    });
+    if (rows.length) tables.push(rows);
+  }
+  return tables;
+}
+
+function extractCells_(rowHtml) {
+  const cells = [];
+  const cellRegex = /<(?:td|th)\b[^>]*>([\s\S]*?)<\/(?:td|th)>/gi;
+  let match;
+  while ((match = cellRegex.exec(rowHtml)) !== null) {
+    cells.push({
+      text: stripTags_(match[1]),
+      links: extractLinks_(match[1]),
+    });
+  }
+  return cells;
+}
+
+function extractLinks_(html) {
+  const links = [];
+  const linkRegex = /<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi;
+  let match;
+  while ((match = linkRegex.exec(html)) !== null) {
+    links.push(match[1]);
+  }
+  return links;
+}
+
+function chooseRows_(tables, hints) {
+  let bestRows = [];
+  let bestScore = -1;
+  const normalizedHints = hints.map(keyNorm_);
+  tables.forEach((rows) => {
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0].cells).map(keyNorm_).join(' ');
+    const score = normalizedHints.reduce((sum, hint) => sum + (headers.indexOf(hint) >= 0 ? 1 : 0), 0);
+    if (score > bestScore) {
+      bestScore = score;
+      bestRows = rows;
+    }
+  });
+  return bestScore > 0 ? bestRows : [];
+}
+
+function cellValue_(row, includes, excludes) {
+  const includeNorm = includes.map(keyNorm_);
+  const excludeNorm = (excludes || []).map(keyNorm_);
+  const keys = Object.keys(row.cells || {});
+  for (let i = 0; i < keys.length; i += 1) {
+    const clean = keyNorm_(keys[i]);
+    const included = includeNorm.some((hint) => clean.indexOf(hint) >= 0);
+    const excluded = excludeNorm.some((hint) => clean.indexOf(hint) >= 0);
+    if (included && !excluded) return row.cells[keys[i]];
+  }
+  return '';
+}
+
+function courseTotalFromRow_(row) {
+  const total = cellValue_(row, ['total del curso', 'total curso', 'course total', 'total'], []);
+  if (total) return total;
+  const values = Object.keys(row.cells || {}).map((key) => row.cells[key]).filter((value) => /\d/.test(String(value || '')));
+  return values.length ? values[values.length - 1] : '';
+}
+
+function countFromParticipationRow_(row) {
+  let maxValue = 0;
+  Object.keys(row.cells || {}).forEach((key) => {
+    const clean = keyNorm_(key);
+    if (clean.indexOf('usuario') >= 0 || clean.indexOf('nombre') >= 0 || clean.indexOf('email') >= 0 || clean.indexOf('correo') >= 0) return;
+    const text = String(row.cells[key] || '');
+    const match = text.match(/\d+/);
+    if (match) maxValue = Math.max(maxValue, Number(match[0]));
+    else if (keyNorm_(text).indexOf('si') >= 0 || keyNorm_(text).indexOf('yes') >= 0) maxValue = Math.max(maxValue, 1);
+  });
+  return maxValue;
+}
+
+function userIdFromLinks_(links) {
+  for (let i = 0; i < links.length; i += 1) {
+    const match = String(links[i]).match(/[?&](?:id|userid)=(\d+)/);
+    if (match) return match[1];
+  }
+  return '';
+}
+
+function extractInputValue_(html, name) {
+  const re = new RegExp("<input\\b[^>]*name=[\"']" + name + "[\"'][^>]*>", 'i');
+  const match = String(html || '').match(re);
+  if (!match) return '';
+  const value = match[0].match(/value=["']([^"']*)["']/i);
+  return value ? decodeHtml_(value[1]) : '';
+}
+
+function extractTitle_(html) {
+  const heading = String(html || '').match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i) || String(html || '').match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
+  return heading ? stripTags_(heading[1]).replace(/\s*:\s*Participantes\s*$/i, '') : '';
+}
+
+function stripTags_(html) {
+  return decodeHtml_(String(html || '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim());
+}
+
+function decodeHtml_(text) {
+  return String(text || '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&aacute;/gi, 'á')
+    .replace(/&eacute;/gi, 'é')
+    .replace(/&iacute;/gi, 'í')
+    .replace(/&oacute;/gi, 'ó')
+    .replace(/&uacute;/gi, 'ú')
+    .replace(/&ntilde;/gi, 'ñ')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanHeader_(text) {
+  return stripTags_(text)
+    .replace(/\s*Ordenar por\s+.*$/i, '')
+    .replace(/\s*Ascending\s*.*$/i, '')
+    .replace(/\s*Ascendente\s*.*$/i, '')
+    .trim();
+}
+
+function keyNorm_(text) {
+  return String(text || '').toLowerCase()
+    .replace(/[áàäâ]/g, 'a')
+    .replace(/[éèëê]/g, 'e')
+    .replace(/[íìïî]/g, 'i')
+    .replace(/[óòöô]/g, 'o')
+    .replace(/[úùüû]/g, 'u')
+    .replace(/ñ/g, 'n')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function daysFromText_(text) {
+  const clean = keyNorm_(text);
+  if (!clean || clean.indexOf('nunca') >= 0 || clean.indexOf('never') >= 0) return 999;
+  const day = clean.match(/(\d+)\s*d[ií]?a/);
+  const hour = clean.match(/(\d+)\s*hora/);
+  let value = 0;
+  if (day) value += Number(day[1]);
+  if (hour) value += Number(hour[1]) / 24;
+  return round_(value || 0);
+}
+
+function absoluteMoodleUrl_(href) {
+  if (/^https?:\/\//i.test(href)) return href;
+  const base = PropertiesService.getScriptProperties().getProperty(MOODLE_BASE_URL_PROPERTY) || '';
+  return base.replace(/\/+$/, '') + '/' + String(href || '').replace(/^\/+/, '');
+}
+
+function getMoodleCredentialStatus() {
+  const props = PropertiesService.getScriptProperties();
+  const baseUrl = props.getProperty(MOODLE_BASE_URL_PROPERTY) || '';
+  const username = props.getProperty(MOODLE_USERNAME_PROPERTY) || '';
+  const password = props.getProperty(MOODLE_PASSWORD_PROPERTY) || '';
+  return {
+    ok: true,
+    configured: Boolean(baseUrl && username && password),
+    hasBaseUrl: Boolean(baseUrl),
+    hasUsername: Boolean(username),
+    hasPassword: Boolean(password),
+    baseUrl,
+    usernameMasked: username ? maskValue_(username) : '',
+    propertyNames: [MOODLE_BASE_URL_PROPERTY, MOODLE_USERNAME_PROPERTY, MOODLE_PASSWORD_PROPERTY],
+  };
+}
+
+function getMoodleCredentials_() {
+  const props = PropertiesService.getScriptProperties();
+  const credentials = {
+    baseUrl: props.getProperty(MOODLE_BASE_URL_PROPERTY) || '',
+    username: props.getProperty(MOODLE_USERNAME_PROPERTY) || '',
+    password: props.getProperty(MOODLE_PASSWORD_PROPERTY) || '',
+  };
+  if (!credentials.baseUrl || !credentials.username || !credentials.password) {
+    throw new Error('Credenciales Moodle no configuradas en Script Properties. Configure REPORTA_AULA_MOODLE_BASE_URL, REPORTA_AULA_MOODLE_USERNAME y REPORTA_AULA_MOODLE_PASSWORD.');
+  }
+  return credentials;
+}
+
+function configureMoodleCredentials_(form) {
+  const baseUrl = String(form.baseUrl || form.moodleBaseUrl || form.moodle_base_url || '').replace(/\/+$/, '');
+  const username = String(form.username || form.moodleUsername || '').trim();
+  const password = String(form.password || form.moodlePassword || '');
+  if (!baseUrl || !username || !password) {
+    throw new Error('Faltan URL base, usuario o contrasena Moodle.');
+  }
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(MOODLE_BASE_URL_PROPERTY, baseUrl);
+  props.setProperty(MOODLE_USERNAME_PROPERTY, username);
+  props.setProperty(MOODLE_PASSWORD_PROPERTY, password);
+  return {
+    ok: true,
+    configured: true,
+    baseUrl,
+    usernameMasked: maskValue_(username),
+  };
+}
+
+function maskValue_(value) {
+  const text = String(value || '');
+  if (text.length <= 4) return '****';
+  return text.substring(0, 2) + '***' + text.substring(text.length - 2);
+}
+
 function appendAudit_(ss, action, detail, startedAt) {
   const user = Session.getActiveUser().getEmail() || 'usuario_gas';
   const sheet = ss.getSheetByName('GAS_AUDITORIA') || ss.insertSheet('GAS_AUDITORIA');
@@ -625,6 +1311,15 @@ function appendAudit_(ss, action, detail, startedAt) {
     sheet.appendRow(['timestamp', 'usuario', 'accion', 'detalle', 'origen']);
   }
   sheet.appendRow([startedAt || new Date(), user, action, detail, 'gas-webapp']);
+}
+
+function appendGasError_(ss, action, error, detail) {
+  const user = Session.getActiveUser().getEmail() || 'usuario_gas';
+  const sheet = ss.getSheetByName('GAS_ERRORES') || ss.insertSheet('GAS_ERRORES');
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['timestamp', 'usuario', 'accion', 'error', 'detalle']);
+  }
+  sheet.appendRow([new Date(), user, action, String(error && error.message ? error.message : error), detail || '']);
 }
 
 function appendEvidence_(ss, run, evidence) {
@@ -696,6 +1391,24 @@ function validateSecret_(secret) {
   }
 }
 
+function validateAdminSecret_(secret) {
+  const expected = PropertiesService.getScriptProperties().getProperty(SECRET_PROPERTY);
+  if (!expected) {
+    throw new Error('REPORTA_AULA_SECRET no esta configurado. Configure primero un secreto administrativo en Script Properties.');
+  }
+  if (secret !== expected) {
+    throw new Error('Token administrativo invalido.');
+  }
+}
+
+function writeMoodleRawSheets_(ss, report) {
+  writeObjects_(ss, 'GAS_PARTICIPANTES', report.participants || [], ['user_id', 'name', 'username', 'email', 'roles', 'last_access', 'status']);
+  writeObjects_(ss, 'GAS_CALIFICACIONES', report.grade_rows || [], ['user_id', 'name', 'username', 'email', 'grade_cells_with_value', 'course_total']);
+  writeObjects_(ss, 'GAS_ACTIVIDADES', report.activities || [], ['cmid', 'module', 'name', 'url']);
+  writeObjects_(ss, 'GAS_PARTICIPACION', report.participation_rows || [], ['activity_cmid', 'activity_name', 'action', 'role_id', 'role_name', 'user_id', 'student_name', 'count']);
+  writeObjects_(ss, 'GAS_TUTORES', report.tutor_profiles || [], ['tutor_id', 'tutor_name', 'tutor_email', 'tutor_role', 'assigned_students', 'tutor_actions_registered', 'tutor_forum_replies', 'tutor_feedback_count', 'tutor_response_hours', 'tutor_activity_coverage', 'tutor_followup_signal']);
+}
+
 function writeRunMetadata_(ss, run) {
   const values = [
     ['Campo', 'Valor'],
@@ -726,6 +1439,11 @@ function writeValues_(ss, name, values) {
   });
   sheet.getRange(1, 1, padded.length, width).setValues(padded);
   sheet.setFrozenRows(1);
+}
+
+function writeObjects_(ss, name, rows, headers) {
+  const values = [headers].concat((rows || []).map((row) => headers.map((key) => row[key] === undefined ? '' : row[key])));
+  writeValues_(ss, name, values);
 }
 
 function ensureSheetWithHeaders_(ss, name, headers) {
