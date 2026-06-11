@@ -953,3 +953,89 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 
 - Iniciar primera prueba real con `Actividades max.` entre 5 y 10.
 - Mantener cuenta institucional solo para automatizaciones periodicas; para corridas manuales usar credenciales del usuario operador.
+
+## 2026-06-11 16:29 - Ruta visual del modelo bayesiano
+
+### Proyecto
+
+- Nombre: Reporta Aula Moodle.
+- Cliente o institucion: FACEN / Aula Moodle.
+- Ruta local: `/tmp/reporta_aula_sheet_button`.
+- Repositorio: `https://github.com/diegomezapy/reporta_aula_moodle.git`.
+- URL publica: `https://diegomezapy.github.io/reporta_aula_moodle/`.
+- Responsable: Codex.
+- Version: `2026.06.11-bayes-path`.
+
+### Objetivo de la intervencion
+
+- Agregar una figura analitica al tablero para explicar como el modelo bayesiano actualiza el pronostico con cada nueva evidencia.
+- Mejorar la interpretabilidad del prior, los factores de evidencia, el LR aproximado y el posterior.
+
+### Diagnostico inicial
+
+- La vista `Riesgo` mostraba KPIs, bandas, priorizacion y tabla de evidencia, pero no una figura que explicara visualmente la secuencia de actualizacion bayesiana.
+- El manual maestro exige que los graficos sean funcionales y auditables, no decorativos.
+
+### Acciones realizadas
+
+- Se agrego panel `Ruta Bayesiana Del Pronostico` en la vista `Riesgo`.
+- La figura toma el estudiante seleccionado si existe; si no, usa el caso con mayor posterior dentro de los filtros activos.
+- Se agregaron tarjetas secuenciales: prior inicial, evidencias, LR aproximado, delta en puntos porcentuales y probabilidad acumulada.
+- Se reutilizaron las reglas del modelo para derivar evidencias de semestre y carrera.
+- Se agrego resumen con caso trazado, prior, posterior y ajuste total.
+- Se actualizo version/cache a `2026.06.11-bayes-path`.
+- Se actualizaron README, manual tecnico y manual de usuario.
+
+### Archivos modificados
+
+- `index.html`.
+- `assets/pages-app.js`.
+- `assets/pages-app.css`.
+- `service-worker.js`.
+- `README.md`.
+- `docs/manual_usuario.md`.
+- `docs/manual_tecnico.md`.
+- `BITACORA.md`.
+
+### Comandos o scripts ejecutados
+
+- `node --check assets/pages-app.js`.
+- `python3 -m compileall app tests`.
+- `/Users/diegobernardomezabogado/reporta_aula_moodle/.venv/bin/python -m pytest`.
+- `git diff --check`.
+- `python3 -m http.server 8073`.
+- `curl` contra HTML, JS, CSS y `service-worker.js` locales.
+
+### Resultados verificados
+
+- Sintaxis JS correcta.
+- Compilacion Python correcta.
+- Pruebas Python: 5 passed, 1 warning LibreSSL/urllib3.
+- `git diff --check`: correcto.
+- Servidor local `http://127.0.0.1:8073/` sirve assets `20260611-bayes-path`.
+- HTML local contiene `Ruta Bayesiana Del Pronostico`, `bayesStepCount`, `bayesSubject` y `bayesFlow`.
+- JS local contiene `APP_VERSION = "2026.06.11-bayes-path"`, `bayesianPath`, `renderBayesianPath`, `semesterEvidenceItems` y `careerEvidenceItems`.
+- CSS local contiene estilos `bayes-panel`, `bayes-summary`, `bayes-flow`, `bayes-node` y `bayes-meter`.
+- Service worker local contiene cache `reporta-aula-moodle-pages-v20260611-bayes-path`.
+
+### Errores o incidentes
+
+- No se detectaron errores de sintaxis ni de versionado local.
+
+### Soluciones aplicadas
+
+- Visualizacion horizontal auditable que muestra como cambia el posterior al agregar evidencias.
+- Colores separados para evidencias que aumentan o reducen la probabilidad.
+- Scroll horizontal para mantener compatibilidad movil sin comprimir excesivamente las tarjetas.
+
+### Pendientes
+
+- Publicar commit y verificar GitHub Pages con assets `20260611-bayes-path`.
+
+### Riesgos
+
+- Las razones de verosimilitud mostradas son aproximaciones operativas derivadas de las reglas actuales; deben interpretarse como explicacion del modelo, no como verdad causal.
+
+### Recomendaciones
+
+- En una version futura, permitir elegir explicitamente el estudiante trazado desde la figura sin cambiar de vista.

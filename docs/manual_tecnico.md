@@ -75,6 +75,7 @@ Componentes principales:
 - `#scatterPlot`: dispersion entre acciones Moodle y evaluaciones.
 - `#modelKpis`: KPIs del modelo bayesiano.
 - `#probabilityBands`: bandas de posterior.
+- `#bayesFlow`: ruta bayesiana del caso seleccionado o del mayor posterior filtrado, con prior, evidencias, LR aproximado y posterior.
 - `#riskTable`: priorizacion por estudiante.
 - `#evidenceTable`: evidencia bayesiana auditable.
 

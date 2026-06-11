@@ -25,6 +25,7 @@ La vista incluye:
 - Distribucion por nivel de riesgo.
 - Bandas de probabilidad.
 - Priorizacion por estudiante.
+- Ruta bayesiana del pronostico: muestra como el prior cambia con cada evidencia hasta llegar al posterior.
 - Tabla de evidencia bayesiana con prior, posterior y log LR.
 
 Es una priorizacion de seguimiento, no una decision automatica.

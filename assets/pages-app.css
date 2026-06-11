@@ -610,8 +610,156 @@ h2 {
   grid-template-columns: minmax(280px, 0.85fr) minmax(280px, 0.85fr) minmax(420px, 1.35fr);
 }
 
+.bayes-panel,
 .evidence-panel {
   grid-column: span 3;
+}
+
+.bayes-summary {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(110px, 0.35fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.bayes-summary div {
+  min-height: 74px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--soft);
+}
+
+.bayes-summary span,
+.bayes-summary strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.bayes-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.bayes-summary strong {
+  margin-top: 6px;
+  font-size: 20px;
+}
+
+.bayes-delta-up {
+  color: var(--bad);
+}
+
+.bayes-delta-down {
+  color: var(--good);
+}
+
+.bayes-flow {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(210px, 1fr);
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+}
+
+.bayes-node {
+  display: grid;
+  align-content: space-between;
+  gap: 10px;
+  min-height: 168px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--surface);
+  scroll-snap-align: start;
+}
+
+.bayes-node.neutral {
+  border-left-color: var(--muted);
+}
+
+.bayes-node.risk-up {
+  border-left-color: var(--bad);
+}
+
+.bayes-node.risk-down {
+  border-left-color: var(--good);
+}
+
+.bayes-node-head {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 9px;
+  align-items: start;
+}
+
+.bayes-node-head span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.bayes-node-head strong {
+  min-height: 40px;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.bayes-node-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.bayes-meter {
+  height: 11px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #edf1ea;
+}
+
+.bayes-meter div {
+  height: 100%;
+  border-radius: inherit;
+}
+
+.bayes-meter div.good {
+  background: var(--good);
+}
+
+.bayes-meter div.mid {
+  background: var(--mid);
+}
+
+.bayes-meter div.warn {
+  background: var(--warn);
+}
+
+.bayes-meter div.bad {
+  background: var(--bad);
+}
+
+.bayes-meter div.neutral {
+  background: var(--muted);
+}
+
+.bayes-probability {
+  font-size: 24px;
+  line-height: 1;
 }
 
 .tutor-roster-panel {
@@ -1081,6 +1229,7 @@ button.secondary:hover {
     grid-template-columns: 1fr;
   }
 
+  .bayes-panel,
   .evidence-panel {
     grid-column: auto;
   }
@@ -1126,6 +1275,7 @@ button.secondary:hover {
   }
 
   .kpi-grid,
+  .bayes-summary,
   .grid-two,
   .student-row,
   .risk-row,

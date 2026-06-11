@@ -1,6 +1,6 @@
 const GAS_REPORT_URL = "https://script.google.com/macros/s/AKfycbxuC1G3DN8tRh__ytHyaYYr24jWK_8-sxRuuuwl2jtMPzTMyLfFAcBkZ32xGdF0FtLTDA/exec";
 const MODEL_VERSION = "github_pages_gas_bayes_v0.3_dual_desertion";
-const APP_VERSION = "2026.06.11-user-credentials";
+const APP_VERSION = "2026.06.11-bayes-path";
 const APP_BUILD_DATE = "2026-06-11";
 const APP_CACHE_PREFIX = "reporta-aula-moodle-pages-";
 const RISK_MODES = {
@@ -61,6 +61,12 @@ const els = {
   probabilityBandTotal: $("#probabilityBandTotal"),
   probabilityBands: $("#probabilityBands"),
   riskTable: $("#riskTable"),
+  bayesStepCount: $("#bayesStepCount"),
+  bayesSubject: $("#bayesSubject"),
+  bayesPrior: $("#bayesPrior"),
+  bayesPosterior: $("#bayesPosterior"),
+  bayesDelta: $("#bayesDelta"),
+  bayesFlow: $("#bayesFlow"),
   evidenceCount: $("#evidenceCount"),
   evidenceTable: $("#evidenceTable"),
   studentCount: $("#studentCount"),
@@ -290,6 +296,16 @@ function addEvidence(items, likelihoodRatio, label) {
   items.push({ likelihoodRatio, label });
 }
 
+function probabilityToOdds(value) {
+  const safe = Math.max(0.01, Math.min(0.99, Number(value || 0)));
+  return safe / (1 - safe);
+}
+
+function oddsToProbability(value) {
+  const safe = Math.max(0.01, Number(value || 0));
+  return safe / (1 + safe);
+}
+
 function estimateFromEvidence(prior, evidence) {
   const likelihood = evidence.reduce((acc, item) => acc * Number(item.likelihoodRatio || 1), 1);
   const priorOdds = prior / (1 - prior);
@@ -304,6 +320,10 @@ function estimateFromEvidence(prior, evidence) {
 }
 
 function estimateSemesterRisk(row) {
+  return estimateFromEvidence(0.22, semesterEvidenceItems(row));
+}
+
+function semesterEvidenceItems(row) {
   const evidence = [];
   const actions = parseNumber(row.actions_registered);
   const forums = parseNumber(row.forum_posts);
@@ -329,10 +349,14 @@ function estimateSemesterRisk(row) {
   if (hasValue(row.tutor_activity_coverage) && parseNumber(row.tutor_activity_coverage) < 0.35) addEvidence(evidence, 1.35, "Cobertura tutorial baja");
   else if (hasValue(row.tutor_activity_coverage) && parseNumber(row.tutor_activity_coverage) >= 0.75) addEvidence(evidence, 0.78, "Cobertura tutorial amplia");
 
-  return estimateFromEvidence(0.22, evidence);
+  return evidence;
 }
 
 function estimateCareerRisk(row, semesterPosterior) {
+  return estimateFromEvidence(0.16, careerEvidenceItems(row, semesterPosterior));
+}
+
+function careerEvidenceItems(row, semesterPosterior) {
   const evidence = [];
   const semester = parseNumber(row.semester_number);
   const failed = parseNumber(row.failed_previous_subjects);
@@ -358,7 +382,78 @@ function estimateCareerRisk(row, semesterPosterior) {
   if (semesterPosterior >= 0.7) addEvidence(evidence, 1.5, "Riesgo alto durante el semestre actual");
   else if (semesterPosterior < 0.3) addEvidence(evidence, 0.85, "Riesgo bajo durante el semestre actual");
 
-  return estimateFromEvidence(0.16, evidence);
+  return evidence;
+}
+
+function activeEvidenceItems(row) {
+  const mode = activeRiskConfig();
+  const modeled = mode.prefix === "career"
+    ? careerEvidenceItems(row, parseNumber(row.semester_bayesian_posterior_probability ?? row.semester_desertion_probability, 0))
+    : semesterEvidenceItems(row);
+  const labels = activeEvidenceFactors(row);
+  if (!labels.length) return modeled;
+  const distributedLr = labels.length ? Math.exp(activeLogLikelihoodRatio(row) / labels.length) : 1;
+  return labels.map((label) => {
+    const found = modeled.find((item) => String(item.label).toLowerCase() === String(label).toLowerCase());
+    return {
+      label,
+      likelihoodRatio: found ? found.likelihoodRatio : distributedLr,
+    };
+  });
+}
+
+function bayesianFocusRow(rows) {
+  if (!rows.length) return null;
+  const selected = rows.find((row) => studentKey(row) === state.selectedStudentKey);
+  return selected || [...rows].sort((a, b) => activePosterior(b) - activePosterior(a))[0];
+}
+
+function bayesianPath(row) {
+  if (!row) return [];
+  const prior = Math.max(0.01, Math.min(0.99, activePrior(row) || (activeRiskConfig().prefix === "career" ? 0.16 : 0.22)));
+  const posterior = Math.max(0.01, Math.min(0.99, activePosterior(row) || activeRiskProbability(row)));
+  const evidence = activeEvidenceItems(row);
+  const maxItems = 7;
+  const visible = evidence.slice(0, maxItems);
+  const rest = evidence.slice(maxItems);
+  if (rest.length) {
+    visible.push({
+      label: `${rest.length} senales adicionales`,
+      likelihoodRatio: rest.reduce((acc, item) => acc * Number(item.likelihoodRatio || 1), 1),
+    });
+  }
+  let odds = probabilityToOdds(prior);
+  let previous = prior;
+  const steps = [{
+    label: "Prior inicial",
+    likelihoodRatio: 1,
+    probability: prior,
+    delta: 0,
+    type: "prior",
+  }];
+  visible.forEach((item) => {
+    odds *= Number(item.likelihoodRatio || 1);
+    const current = Math.max(0.01, Math.min(0.99, oddsToProbability(odds)));
+    steps.push({
+      label: item.label,
+      likelihoodRatio: Number(item.likelihoodRatio || 1),
+      probability: current,
+      delta: current - previous,
+      type: Number(item.likelihoodRatio || 1) >= 1 ? "risk" : "protective",
+    });
+    previous = current;
+  });
+  if (!visible.length || Math.abs(previous - posterior) >= 0.015) {
+    const calibrationLr = probabilityToOdds(posterior) / probabilityToOdds(previous);
+    steps.push({
+      label: visible.length ? "Ajuste final del modelo" : "Posterior con datos disponibles",
+      likelihoodRatio: calibrationLr,
+      probability: posterior,
+      delta: posterior - previous,
+      type: calibrationLr >= 1 ? "risk" : "protective",
+    });
+  }
+  return steps;
 }
 
 function convertGasSummary(row) {
@@ -969,6 +1064,7 @@ function renderRisk() {
   renderBars(els.riskBars, riskDist, ["Critico", "Alto", "Medio", "Bajo", "Sin dato"]);
   renderBars(els.probabilityBands, probabilityBands(rows), [">= 70%", "50% - 69%", "30% - 49%", "< 30%"]);
   renderModelKpis(rows);
+  renderBayesianPath(rows);
   renderEvidenceTable(rows);
   renderRiskTable(rows);
 }
@@ -1005,6 +1101,53 @@ function renderEvidenceTable(rows) {
     `;
     item.addEventListener("click", () => selectStudent(row));
     els.evidenceTable.appendChild(item);
+  });
+}
+
+function renderBayesianPath(rows) {
+  if (!els.bayesFlow) return;
+  const row = bayesianFocusRow(rows);
+  els.bayesFlow.replaceChildren();
+  if (!row) {
+    els.bayesSubject.textContent = "Sin estudiantes filtrados";
+    els.bayesPrior.textContent = "0%";
+    els.bayesPosterior.textContent = "0%";
+    els.bayesDelta.textContent = "0 pp";
+    els.bayesStepCount.textContent = "0";
+    return;
+  }
+  const steps = bayesianPath(row);
+  const prior = steps[0]?.probability ?? activePrior(row);
+  const posterior = steps[steps.length - 1]?.probability ?? activePosterior(row);
+  const delta = posterior - prior;
+  els.bayesSubject.textContent = `${row.name} | ${activeRiskConfig().shortLabel}`;
+  els.bayesPrior.textContent = probability(prior);
+  els.bayesPosterior.textContent = probability(posterior);
+  els.bayesDelta.textContent = `${delta >= 0 ? "+" : ""}${Math.round(delta * 100)} pp`;
+  els.bayesDelta.className = delta >= 0 ? "bayes-delta-up" : "bayes-delta-down";
+  els.bayesStepCount.textContent = number(Math.max(0, steps.length - 1));
+
+  steps.forEach((step, index) => {
+    const item = document.createElement("article");
+    const tone = step.type === "prior" ? "neutral" : step.delta >= 0 ? "risk-up" : "risk-down";
+    const lrLabel = step.type === "prior" ? "base" : `LR x${Number(step.likelihoodRatio || 1).toFixed(2)}`;
+    const deltaLabel = step.type === "prior" ? "sin evidencia" : `${step.delta >= 0 ? "+" : ""}${Math.round(step.delta * 100)} pp`;
+    item.className = `bayes-node ${tone}`;
+    item.innerHTML = `
+      <div class="bayes-node-head">
+        <span>${index + 1}</span>
+        <strong>${escapeHtml(step.label)}</strong>
+      </div>
+      <div class="bayes-node-meta">
+        <small>${escapeHtml(lrLabel)}</small>
+        <small>${escapeHtml(deltaLabel)}</small>
+      </div>
+      <div class="bayes-meter" aria-hidden="true">
+        <div class="${labelClass(riskLevel(step.probability))}" style="width:${Math.max(4, Math.round(step.probability * 100))}%"></div>
+      </div>
+      <strong class="bayes-probability">${probability(step.probability)}</strong>
+    `;
+    els.bayesFlow.appendChild(item);
   });
 }
 

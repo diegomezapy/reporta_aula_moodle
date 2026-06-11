@@ -87,6 +87,7 @@ La primera pantalla incluye:
 - Tabla filtrable por estudiante.
 - Panel individual con identificadores, trayectoria academica, actividad Moodle, tutor asignado y factores bayesianos de la modalidad activa.
 - Vista de riesgo de desercion con priorizacion por estudiante, bandas de probabilidad y evidencia bayesiana para semestre o carrera.
+- Ruta bayesiana visual que muestra prior, evidencias sucesivas, razon de verosimilitud aproximada y posterior del caso priorizado.
 - Vista de tutoria con profesores/tutores identificados, acciones, foros, retroalimentacion, cobertura y actividades con evidencia.
 - Vista de automatizacion para configurar corridas periodicas desde GAS.
 - Vista de auditoria con registro de uso de la app.
@@ -105,7 +106,7 @@ La app publica muestra la version activa en el footer y en la vista `Corridas`.
 
 Version actual:
 
-`2026.06.11-user-credentials`
+`2026.06.11-bayes-path`
 
 El boton `Actualizar version` elimina caches `reporta-aula-moodle-pages-*`, solicita actualizacion del service worker y recarga la URL con parametros `app_v` y `ts`. Esto evita que GitHub Pages o el navegador dejen al usuario en una version vieja del tablero.
 

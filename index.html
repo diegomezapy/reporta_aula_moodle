@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#246f5c" />
     <title>Reporta Aula Moodle</title>
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-user-credentials" />
+    <link rel="stylesheet" href="assets/pages-app.css?v=20260611-bayes-path" />
   </head>
   <body>
     <main class="shell">
@@ -194,6 +194,32 @@
             <div id="riskTable" class="risk-table"></div>
           </article>
 
+          <article class="panel bayes-panel">
+            <div class="panel-head">
+              <h2>Ruta Bayesiana Del Pronostico</h2>
+              <span id="bayesStepCount" class="pill muted">0</span>
+            </div>
+            <div class="bayes-summary">
+              <div>
+                <span>Caso trazado</span>
+                <strong id="bayesSubject">Sin datos</strong>
+              </div>
+              <div>
+                <span>Prior</span>
+                <strong id="bayesPrior">0%</strong>
+              </div>
+              <div>
+                <span>Posterior</span>
+                <strong id="bayesPosterior">0%</strong>
+              </div>
+              <div>
+                <span>Ajuste total</span>
+                <strong id="bayesDelta">0 pp</strong>
+              </div>
+            </div>
+            <div id="bayesFlow" class="bayes-flow"></div>
+          </article>
+
           <article class="panel evidence-panel">
             <div class="panel-head">
               <h2>Evidencia Bayesiana</h2>
@@ -378,6 +404,6 @@
         <span id="cacheState">Cache pendiente</span>
       </footer>
     </main>
-    <script src="assets/pages-app.js?v=20260611-user-credentials"></script>
+    <script src="assets/pages-app.js?v=20260611-bayes-path"></script>
   </body>
 </html>
