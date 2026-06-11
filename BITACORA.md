@@ -785,6 +785,17 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
 - `api=runMoodleExtraction`: responde error controlado cuando faltan credenciales.
 - `api=runSample`: sigue generando muestra anonima y escribe en Sheets/Drive.
 - Servidor local `http://127.0.0.1:8071/` sirve `Generar extraccion Moodle`, `Generar muestra`, `Ver credenciales GAS` y assets `20260611-moodle-real-extraction`.
+- Commit publicado: `17e81b0 feat: habilitar extraccion moodle real en gas`.
+- Ramas remotas actualizadas: `origin/diego` y `origin/main`.
+- GitHub Pages verificado en `https://diegomezapy.github.io/reporta_aula_moodle/`:
+  - HTML publico sirve assets `20260611-moodle-real-extraction`;
+  - JS publico contiene `APP_VERSION = "2026.06.11-moodle-real-extraction"`;
+  - service worker publico contiene cache `reporta-aula-moodle-pages-v20260611-moodle-real-extraction`;
+  - UI publica contiene `Credenciales Moodle`, `Ver credenciales GAS`, `Generar extraccion Moodle` y `Generar muestra`.
+- GAS publico verificado despues de la publicacion:
+  - `api=credentialStatus` responde `configured:false`;
+  - `api=runMoodleExtraction` responde error controlado por falta de credenciales;
+  - `api=runSample` permanece operativo como muestra anonima.
 
 ### Errores o incidentes
 
@@ -807,7 +818,7 @@ GitHub Pages queda como superficie visible y directa de la app. Los datos public
   - participacion estudiantil;
   - participacion tutorial;
   - escritura Sheets/Drive.
-- Publicar commit y verificar GitHub Pages con assets `20260611-moodle-real-extraction`.
+- Hacer una corrida real desde la app publica con `maxActivities` bajo y revisar las hojas crudas `GAS_*`.
 
 ### Riesgos
 
